@@ -17,6 +17,10 @@ import json
 import os
 
 from pathlib import Path
+import warnings
+# Suppress timm deprecation FutureWarnings and convnext registry overwrite UserWarnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning, message=r"Overwriting convnext_.*")
 
 from timm.data.mixup import Mixup
 from timm.models import create_model
@@ -48,9 +52,9 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=64, type=int,
+    parser.add_argument('--batch_size', default=150, type=int,
                         help='Per GPU batch size')
-    parser.add_argument('--epochs', default=300, type=int)
+    parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--update_freq', default=1, type=int,
                         help='gradient accumulation steps')
 
@@ -146,6 +150,8 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
                         help='dataset path')
+    parser.add_argument('--load_weights', default='./model_ckpt_test/checkpoint-best.pth/', type=str,
+                        help='dataset path')
     parser.add_argument('--eval_data_path', default=None, type=str,
                         help='dataset path for evaluation')
     parser.add_argument('--nb_classes', default=1000, type=int,
@@ -170,7 +176,9 @@ def get_args_parser():
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--eval', type=str2bool, default=False,
+    parser.add_argument('--eval', type=str2bool, default=True,
+                        help='Perform evaluation only')
+    parser.add_argument('--model_summary', type=str2bool, default=True,
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', type=str2bool, default=True,
                         help='Enabling distributed evaluation')
@@ -198,6 +206,12 @@ def get_args_parser():
                         help="The name of the W&B project where you're sending the new run.")
     parser.add_argument('--wandb_ckpt', type=str2bool, default=False,
                         help="Save model checkpoints as W&B Artifacts.")
+    parser.add_argument('--ttfs_convert', type=str2bool, default=True,
+                        help="Save model checkpoints as W&B Artifacts.")
+    parser.add_argument('--spiking', type=str2bool, default=True,
+                        help='Use ConvNeXt spiking (TTFS) variant instead of ANN')
+    parser.add_argument('--ttfs_tmin', type=float, default=0.0, help='TTFS minimum time')
+    parser.add_argument('--ttfs_tmax', type=float, default=1.0, help='TTFS maximum time')
 
     return parser
 
@@ -275,23 +289,87 @@ def main(args):
             prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
             label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
-    model = create_model(
-        args.model, 
-        pretrained=False, 
-        num_classes=args.nb_classes, 
-        drop_path_rate=args.drop_path,
-        layer_scale_init_value=args.layer_scale_init_value,
-        head_init_scale=args.head_init_scale,
+    if getattr(args, 'spiking', False):
+        # instantiate spiking variant (shares weights with ConvNeXt)
+        from models.convnext import ConvNeXtSpiking
+        model = ConvNeXtSpiking(in_chans=3, num_classes=args.nb_classes,
+                                drop_path_rate=args.drop_path,
+                                layer_scale_init_value=args.layer_scale_init_value,
+                                head_init_scale=args.head_init_scale,
+                                t_min=args.ttfs_tmin, t_max=args.ttfs_tmax)
+        # If a checkpoint is provided via --finetune, load it into the spiking model now.
+        # This mirrors the finetune handling below but does it early for the spiking branch.
+        if args.load_weights:
+            load_path = args.load_weights
+            print("Requested to load weights from: %s" % load_path)
+            # normalize and strip trailing separators
+            load_path = os.path.normpath(load_path)
+            # if a directory was provided, try to find the most recent .pth/.pt file inside
+            if os.path.isdir(load_path):
+                cand = [os.path.join(load_path, f) for f in os.listdir(load_path)
+                        if f.lower().endswith(('.pth', '.pt'))]
+                if len(cand) == 0:
+                    raise FileNotFoundError(f"No checkpoint files (.pth/.pt) found in directory: {load_path}")
+                # choose the most recently modified checkpoint
+                load_path = sorted(cand, key=os.path.getmtime)[-1]
+                print(f"Found checkpoint in directory, using: {load_path}")
+
+            if not os.path.isfile(load_path):
+                raise FileNotFoundError(f"Checkpoint file not found: {load_path}")
+
+            checkpoint = torch.load(load_path, map_location='cpu')
+
+            # If the checkpoint is a dict with nested model keys (e.g. {'model': ..., 'optimizer': ...}),
+            # extract the actual state_dict using args.model_key (same logic as finetune handling).
+            checkpoint_model = None
+            for model_key in args.model_key.split('|'):
+                if model_key in checkpoint:
+                    checkpoint_model = checkpoint[model_key]
+                    print(f"Load state_dict from checkpoint key = {model_key}")
+                    break
+            if checkpoint_model is None:
+                checkpoint_model = checkpoint
+
+            # If the classifier head shape does not match (e.g., ImageNet -> CIFAR), remove it so load succeeds.
+            # state_dict = model.state_dict()
+            # for k in ['head.weight', 'head.bias']:
+            #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict.get(k, None).shape:
+            #         print(f"Removing key {k} from pretrained checkpoint (shape mismatch: {checkpoint_model[k].shape} vs {state_dict.get(k, None)})")
+            #         del checkpoint_model[k]
+
+            utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
+            # clear load_weights so downstream code does not attempt to reload
+            args.load_weights = ''
+
+    else:
+        model = create_model(
+            args.model, 
+            pretrained=False, 
+            num_classes=args.nb_classes, 
+            drop_path_rate=args.drop_path,
+            layer_scale_init_value=args.layer_scale_init_value,
+            head_init_scale=args.head_init_scale,
         )
+    if args.model_summary:
+
+        from torchinfo import summary
+        summary(model, input_size=(1, 3, 32, 32), device="cpu" if not torch.cuda.is_available() else "cuda")
+        # return 0
+
+    if args.eval:
+        print(f"Eval only mode")
+        test_stats = evaluate(data_loader_val, model, device, use_amp=args.use_amp)
+        print(f"Accuracy of the network on {len(dataset_val)} test images: {test_stats['acc1']:.5f}%")
+        return
 
     if args.finetune:
+        print("Load ckpt from %s" % args.finetune)
         if args.finetune.startswith('https'):
             checkpoint = torch.hub.load_state_dict_from_url(
                 args.finetune, map_location='cpu', check_hash=True)
         else:
             checkpoint = torch.load(args.finetune, map_location='cpu')
 
-        print("Load ckpt from %s" % args.finetune)
         checkpoint_model = None
         for model_key in args.model_key.split('|'):
             if model_key in checkpoint:
@@ -380,11 +458,6 @@ def main(args):
         args=args, model=model, model_without_ddp=model_without_ddp,
         optimizer=optimizer, loss_scaler=loss_scaler, model_ema=model_ema)
 
-    if args.eval:
-        print(f"Eval only mode")
-        test_stats = evaluate(data_loader_val, model, device, use_amp=args.use_amp)
-        print(f"Accuracy of the network on {len(dataset_val)} test images: {test_stats['acc1']:.5f}%")
-        return
 
     max_accuracy = 0.0
     if args.model_ema and args.model_ema_eval:
