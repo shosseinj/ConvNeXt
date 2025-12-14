@@ -14,6 +14,17 @@ from timm.utils import accuracy, ModelEma
 
 import utils
 
+def delay_regularization(model):
+    reg = 0.0
+    for m in model.modules():
+        if hasattr(m, 'D_mid'):
+            reg = reg + torch.mean(torch.relu(m.D_mid))
+        if hasattr(m, 'D_out'):
+            reg = reg + torch.mean(torch.relu(m.D_out))
+    return -reg
+
+
+
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, loss_scaler, max_norm: float = 0,
@@ -51,11 +62,16 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         if use_amp:
             with torch.cuda.amp.autocast():
                 output = model(samples)
-                loss = criterion(output, targets)
+                loss_cls  = criterion(output, targets)
         else: # full precision
             output = model(samples)
-            loss = criterion(output, targets)
+            loss_cls  = criterion(output, targets)
+# HOSESIN
+        loss_delay = delay_regularization(model)
 
+        lambda_delay = 1e-1  # start small
+        loss = loss_cls + lambda_delay * loss_delay
+        # HOSSEIN
         loss_value = loss.item()
 
         if not math.isfinite(loss_value): # this could trigger if using AMP

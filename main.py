@@ -35,6 +35,30 @@ from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 import models.convnext
 import models.convnext_isotropic
+from collections import defaultdict
+
+
+
+class SparsityHook:
+    """Hook to record spike times and compute sparsity per layer."""
+    def __init__(self, layer_name, t_max=1.0):
+        self.layer_name = layer_name
+        self.t_max = t_max
+        self.spike_times = []
+        self.sparsity = 0.0
+
+    def __call__(self, module, input, output):
+        # output is spike_times tensor (batch, ...)
+        if isinstance(output, torch.Tensor):
+            spike_times = output.detach()
+            # count neurons where spike_time == t_max (never spiked)
+            silent = (spike_times >= self.t_max - 1e-6).float()
+            sparsity = silent.mean().item()
+            self.sparsity = sparsity
+            self.spike_times.append(spike_times)
+
+
+
 
 def str2bool(v):
     """
@@ -150,7 +174,7 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
                         help='dataset path')
-    parser.add_argument('--load_weights', default='./model_ckpt_test/checkpoint-best.pth/', type=str,
+    parser.add_argument('--load_weights', default='./checkpoint-best-SNN.pth/', type=str,
                         help='dataset path')
     parser.add_argument('--eval_data_path', default=None, type=str,
                         help='dataset path for evaluation')
@@ -176,7 +200,7 @@ def get_args_parser():
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--eval', type=str2bool, default=True,
+    parser.add_argument('--eval', type=str2bool, default=False,
                         help='Perform evaluation only')
     parser.add_argument('--model_summary', type=str2bool, default=True,
                         help='Perform evaluation only')
@@ -212,6 +236,7 @@ def get_args_parser():
                         help='Use ConvNeXt spiking (TTFS) variant instead of ANN')
     parser.add_argument('--ttfs_tmin', type=float, default=0.0, help='TTFS minimum time')
     parser.add_argument('--ttfs_tmax', type=float, default=1.0, help='TTFS maximum time')
+    parser.add_argument('--nb_batches', type=int, default=None, help='Number of batches to evaluate (None=all)')
 
     return parser
 
@@ -360,30 +385,33 @@ def main(args):
         print(f"Eval only mode")
         test_stats = evaluate(data_loader_val, model, device, use_amp=args.use_amp)
         print(f"Accuracy of the network on {len(dataset_val)} test images: {test_stats['acc1']:.5f}%")
+        
+
+    if not(args.finetune):
         return
+    else:
+        # print("Load ckpt from %s" % args.finetune)
+        # if args.finetune.startswith('https'):
+        #     checkpoint = torch.hub.load_state_dict_from_url(
+        #         args.finetune, map_location='cpu', check_hash=True)
+        # else:
+        #     checkpoint = torch.load(args.finetune, map_location='cpu')
 
-    if args.finetune:
-        print("Load ckpt from %s" % args.finetune)
-        if args.finetune.startswith('https'):
-            checkpoint = torch.hub.load_state_dict_from_url(
-                args.finetune, map_location='cpu', check_hash=True)
-        else:
-            checkpoint = torch.load(args.finetune, map_location='cpu')
-
-        checkpoint_model = None
-        for model_key in args.model_key.split('|'):
-            if model_key in checkpoint:
-                checkpoint_model = checkpoint[model_key]
-                print("Load state_dict by model_key = %s" % model_key)
-                break
-        if checkpoint_model is None:
-            checkpoint_model = checkpoint
-        state_dict = model.state_dict()
-        for k in ['head.weight', 'head.bias']:
-            if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                print(f"Removing key {k} from pretrained checkpoint")
-                del checkpoint_model[k]
-        utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
+        # checkpoint_model = None
+        # for model_key in args.model_key.split('|'):
+        #     if model_key in checkpoint:
+        #         checkpoint_model = checkpoint[model_key]
+        #         print("Load state_dict by model_key = %s" % model_key)
+        #         break
+        # if checkpoint_model is None:
+        #     checkpoint_model = checkpoint
+        # state_dict = model.state_dict()
+        # for k in ['head.weight', 'head.bias']:
+        #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+        #         print(f"Removing key {k} from pretrained checkpoint")
+        #         del checkpoint_model[k]
+        # utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
+        print('Starting FineTuning')
     model.to(device)
 
     model_ema = None
@@ -464,6 +492,18 @@ def main(args):
         max_accuracy_ema = 0.0
 
     print("Start training for %d epochs" % args.epochs)
+    hooks = {}
+    layer_sparsities = defaultdict(list)
+    def register_hooks(module, prefix=''):
+        for name, child in module.named_children():
+            full_name = f"{prefix}.{name}" if prefix else name
+            if hasattr(child, 'forward'):  # any module with forward
+                hook = SparsityHook(full_name, t_max=args.ttfs_tmax)
+                child.register_forward_hook(hook)
+                hooks[full_name] = hook
+
+    register_hooks(model)
+
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
@@ -472,6 +512,56 @@ def main(args):
             log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
         if wandb_logger:
             wandb_logger.set_steps()
+       
+                
+        print(f"\nEvaluating sparsity on {len(dataset_val)} samples...")
+        print(f"Time window: t_min={args.ttfs_tmin}, t_max={args.ttfs_tmax}")
+        print(f"Model: {args.model}, Spiking={args.spiking}, TTFS_convert={args.ttfs_convert}\n")
+
+        correct = 0
+        total = 0
+        batch_sparsities = []
+
+        with torch.no_grad():
+            for batch_idx, (img, label) in enumerate(data_loader_val):
+                if args.nb_batches and batch_idx >= args.nb_batches:
+                    break
+
+                img = img.to(device)
+                label = label.to(device)
+
+                logits = model(img)
+                pred = logits.argmax(dim=1)
+                correct += (pred == label).sum().item()
+                total += label.size(0)
+
+                # collect per-layer sparsities from this batch
+                for layer_name, hook in hooks.items():
+                    layer_sparsities[layer_name].append(hook.sparsity)
+
+                if (batch_idx + 1) % 10 == 0 or batch_idx == 0:
+                    avg_sparsity = np.mean([h.sparsity for h in hooks.values()]) if hooks else 0.0
+                    batch_sparsities.append(avg_sparsity)
+                    print(f"Batch [{batch_idx + 1}/{len(data_loader_val) if not args.nb_batches else min(args.nb_batches, len(data_loader_val))}] "
+                        f"Accuracy: {100.0 * correct / total:.2f}% | "
+                        f"Avg Layer Sparsity: {100.0 * avg_sparsity:.2f}%")
+
+        # final stats
+                final_accuracy = 100.0 * correct / total
+                overall_sparsity = np.mean(batch_sparsities) if batch_sparsities else 0.0
+
+        print(f"\n{'='*70}")
+        print(f"FINAL EVALUATION RESULTS")
+        print(f"{'='*70}")
+        print(f"Overall Accuracy: {final_accuracy:.2f}%")
+        print(f"Overall Average Sparsity: {overall_sparsity:.2f}%")
+        print(f"Total samples evaluated: {total}")
+        print(f"\nPer-Layer Average Sparsities:")
+        for layer_name in sorted(hooks.keys()):
+            avg_sparsity = np.mean(layer_sparsities[layer_name])
+            print(f"  {layer_name}: {100.0 * avg_sparsity:.2f}%")
+
+        print(f"{'='*70}")
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer,
             device, epoch, loss_scaler, args.clip_grad, model_ema, mixup_fn,
@@ -484,8 +574,9 @@ def main(args):
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(
                     args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                    loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)
-        if data_loader_val is not None:
+                    loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)       
+                
+        if data_loader_val is not None and False:
             test_stats = evaluate(data_loader_val, model, device, use_amp=args.use_amp)
             print(f"Accuracy of the model on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
             if max_accuracy < test_stats["acc1"]:

@@ -12,6 +12,12 @@ import torch.nn.functional as F
 from timm.models.layers import trunc_normal_, DropPath
 from timm.models.registry import register_model
 
+# ---------- 1.  helper (put right after your imports) ----------
+def channel_wta(t, k):               # t: (N,C,H,W) spike times
+    _, top_idx = torch.topk(t, k, dim=1, largest=False)   # indices of earliest spikes
+    mask = torch.zeros_like(t).scatter_(1, top_idx, 1.)
+    return t * mask + (1-mask) * t.max()   # silence losers by pushing to t_max
+
 
 def call_spiking_torch(tj, W, D_i, t_min_prev, t_min, t_max):
     """
@@ -82,6 +88,68 @@ class Block(nn.Module):
         x = input + self.drop_path(x)
         return x
 
+
+
+class SpikingBlock(nn.Module):
+    """
+    Spiking variant of ConvNeXt Block using TTFS (time-to-first-spike) analytic mapping.
+    Inputs/outputs are spike-time tensors with shape (N, C, H, W), values in [t_min, t_max].
+    """
+    def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0):
+        super().__init__()
+        # reuse the depthwise conv weights and pointwise weights from the original block
+        # orig_block.dwconv is nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        # orig_block.pwconv1 / pwconv2 are nn.Linear layers applied on channels-last
+        self.dwconv = orig_block.dwconv  # use same module (weights)
+        # we'll not use orig_block.act (GELU), instead compute spike-time mapping
+        self.pw1 = orig_block.pwconv1
+        self.pw2 = orig_block.pwconv2
+        self.gamma = getattr(orig_block, 'gamma', None)
+        self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
+        self.t_min = float(t_min)
+        self.t_max = float(t_max)
+
+    def forward(self, tj):
+        """
+        tj: input spike times shape (N, C_in, H, W)
+        returns ti: output spike times shape (N, C_out, H, W) (C_out==C_in for ConvNeXt)
+        """
+        # 1) Depthwise conv: we approximate by applying the conv on the spike-time map directly.
+        # This treats the conv as filtering the spike-time field (heuristic).
+        x = tj
+        # apply depthwise conv on times (float)
+        x_dw = self.dwconv(x)  # shape (N, C, H, W)
+
+
+
+
+
+        # 2) pointwise layers: convert to (N*H*W, C) to apply linear mapping per spatial location
+        N, C, H, W = x_dw.shape
+        x_flat = x_dw.permute(0, 2, 3, 1).reshape(-1, C)  # (N*H*W, C_in)
+
+        # Prepare W matrices for matmul
+        # pw1: Linear(in=C, out=C*4) with weight shape (out, in)
+        W1 = self.pw1.weight.t().contiguous()  # shape (C_in, C_mid)
+        # No per-output delays provided -> use zeros
+        D_mid = torch.zeros(W1.shape[1], device=W1.device, dtype=W1.dtype)
+        # call_spiking_torch expects t_min as scalar or tensor broadcastable
+        t_min = torch.tensor(self.t_min, device=x_flat.device, dtype=x_flat.dtype)
+        t_max = torch.tensor(self.t_max, device=x_flat.device, dtype=x_flat.dtype)
+        # compute times after first linear layer
+        t_mid = call_spiking_torch(x_flat, W1, D_mid, t_min_prev=None, t_min=t_min, t_max=t_max)
+
+        # second linear
+        W2 = self.pw2.weight.t().contiguous()  # shape (C_mid, C_out)
+        D_out = torch.zeros(W2.shape[1], device=W2.device, dtype=W2.dtype)
+        t_out = call_spiking_torch(t_mid, W2, D_out, t_min_prev=None, t_min=t_min, t_max=t_max)
+
+        # reshape back to (N, C, H, W)
+        t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()
+
+        # residual
+        out = tj + self.drop_path(t_out)
+        return out
     
     
 
@@ -178,10 +246,6 @@ class SpikingBlock(nn.Module):
         self.t_min = float(t_min)
         self.t_max = float(t_max)
 
-        self.D_mid = nn.Parameter(torch.zeros(self.pw1.out_features))
-        self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
-
-
     def forward(self, tj):
         # tj: spike times tensor (N, C, H, W)
         x = tj
@@ -193,12 +257,10 @@ class SpikingBlock(nn.Module):
         x_flat = x.permute(0, 2, 3, 1).reshape(-1, C)  # (N*H*W, C_in)
 
         # pw1
-        # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
         W1 = self.pw1.weight.t().contiguous()  # (C_in, C_mid)
         device = x_flat.device
         dtype = x_flat.dtype
         D_mid = torch.zeros(W1.shape[1], device=device, dtype=dtype)
-        # D_mid = torch.clamp(torch.relu(self.D_mid), max=0.9 * (self.t_max - self.t_min))
         t_min = torch.tensor(self.t_min, device=device, dtype=dtype)
         t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
         t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
@@ -206,16 +268,45 @@ class SpikingBlock(nn.Module):
         # pw2
         W2 = self.pw2.weight.t().contiguous()  # (C_mid, C_out)
         D_out = torch.zeros(W2.shape[1], device=device, dtype=dtype)
-        # D_out = torch.clamp(torch.relu(self.D_out), max=0.9 * (self.t_max - self.t_min))
         t_out = call_spiking_torch(t_mid, W2, D_out, None, t_min, t_max)
 
         # reshape back
         t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()
 
-        # out = tj + self.drop_path(t_out)
-        out = torch.minimum(tj, self.drop_path(t_out))
-
+        out = tj + self.drop_path(t_out)
         return out
+
+
+class ConvNeXtSpiking(ConvNeXt):
+    """ConvNeXt variant that operates on TTFS spike-time inputs.
+    Expects inputs of shape (N, C, H, W) containing spike times in [t_min, t_max].
+    """
+    def __init__(self, *args, t_min=0.0, t_max=1.0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.t_min = float(t_min)
+        self.t_max = float(t_max)
+        # replace stage blocks with spiking blocks that share weights
+        new_stages = nn.ModuleList()
+        for stage in self.stages:
+            sp_blocks = []
+            for blk in stage:
+                sp_blocks.append(SpikingBlock(blk, t_min=self.t_min, t_max=self.t_max))
+            new_stages.append(nn.Sequential(*sp_blocks))
+        self.stages = new_stages
+
+    def forward_features(self, x_t):
+        # x_t: spike times (N, C, H, W)
+        for i in range(4):
+            x_t = self.downsample_layers[i](x_t)
+            x_t = self.stages[i](x_t)
+        x_t = x_t.mean([-2, -1])
+        return x_t
+
+    def forward(self, x_t):
+        x_pool = self.forward_features(x_t)
+        # convert spike times to scores (earlier spike -> higher score)
+        logits = self.head(-x_pool)
+        return logits
 
 
 class ConvNeXtSpiking(ConvNeXt):

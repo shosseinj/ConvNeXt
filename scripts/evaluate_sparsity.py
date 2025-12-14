@@ -50,7 +50,6 @@ class SparsityHook:
 def main():
     parent = get_args_parser()
     parser = argparse.ArgumentParser(parents=[parent])
-    parser.add_argument('--nb_batches', type=int, default=None, help='Number of batches to evaluate (None=all)')
     args = parser.parse_args()
 
     # ensure spiking mode is enabled

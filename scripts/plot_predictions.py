@@ -85,39 +85,46 @@ def main():
 
     # load checkpoint using helper that removes mismatched head keys
     if args.load_weights:
-        load_path = os.path.normpath(args.load_weights)
-        print("Requested to load weights from: %s" % load_path)
-        # if a directory was provided, try to find the most recent .pth/.pt file inside
-        if os.path.isdir(load_path):
-            cand = [os.path.join(load_path, f) for f in os.listdir(load_path)
-                    if f.lower().endswith(('.pth', '.pt'))]
-            if len(cand) == 0:
-                raise FileNotFoundError(f"No checkpoint files (.pth/.pt) found in directory: {load_path}")
-            load_path = sorted(cand, key=os.path.getmtime)[-1]
-            print(f"Found checkpoint in directory, using: {load_path}")
+                load_path = args.load_weights
+                print("Requested to load weights from: %s" % load_path)
+                # normalize and strip trailing separators
+                load_path = os.path.normpath(load_path)
+                # if a directory was provided, try to find the most recent .pth/.pt file inside
+                if os.path.isdir(load_path):
+                    cand = [os.path.join(load_path, f) for f in os.listdir(load_path)
+                            if f.lower().endswith(('.pth', '.pt'))]
+                    if len(cand) == 0:
+                        raise FileNotFoundError(f"No checkpoint files (.pth/.pt) found in directory: {load_path}")
+                    # choose the most recently modified checkpoint
+                    load_path = sorted(cand, key=os.path.getmtime)[-1]
+                    print(f"Found checkpoint in directory, using: {load_path}")
 
-        if not os.path.isfile(load_path):
-            raise FileNotFoundError(f"Checkpoint file not found: {load_path}")
+                if not os.path.isfile(load_path):
+                    raise FileNotFoundError(f"Checkpoint file not found: {load_path}")
 
-        checkpoint = torch.load(load_path, map_location='cpu')
-        checkpoint_model = None
-        for model_key in args.model_key.split('|'):
-            if model_key in checkpoint:
-                checkpoint_model = checkpoint[model_key]
-                print(f"Load state_dict from checkpoint key = {model_key}")
-                break
-        if checkpoint_model is None:
-            checkpoint_model = checkpoint
+                checkpoint = torch.load(load_path, map_location='cpu')
 
-        # remove mismatched head params (ImageNet -> CIFAR)
-        state_dict = model.state_dict()
-        for k in ['head.weight', 'head.bias']:
-            if k in checkpoint_model and k in state_dict and checkpoint_model[k].shape != state_dict[k].shape:
-                print(f"Removing key {k} from checkpoint (shape {checkpoint_model[k].shape} != {state_dict[k].shape})")
-                del checkpoint_model[k]
+                # If the checkpoint is a dict with nested model keys (e.g. {'model': ..., 'optimizer': ...}),
+                # extract the actual state_dict using args.model_key (same logic as finetune handling).
+                checkpoint_model = None
+                for model_key in args.model_key.split('|'):
+                    if model_key in checkpoint:
+                        checkpoint_model = checkpoint[model_key]
+                        print(f"Load state_dict from checkpoint key = {model_key}")
+                        break
+                if checkpoint_model is None:
+                    checkpoint_model = checkpoint
 
-        utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
-        args.load_weights = ''
+                # If the classifier head shape does not match (e.g., ImageNet -> CIFAR), remove it so load succeeds.
+                # state_dict = model.state_dict()
+                # for k in ['head.weight', 'head.bias']:
+                #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict.get(k, None).shape:
+                #         print(f"Removing key {k} from pretrained checkpoint (shape mismatch: {checkpoint_model[k].shape} vs {state_dict.get(k, None)})")
+                #         del checkpoint_model[k]
+
+                utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
+                # clear load_weights so downstream code does not attempt to reload
+                args.load_weights = ''
     model.to(device)
     model.eval()
 
