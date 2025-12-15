@@ -167,13 +167,12 @@ class SpikingBlock(nn.Module):
     Spiking variant of ConvNeXt Block using TTFS analytic mapping.
     Reuses weights from an existing Block instance.
     """
-    def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0, force_positive_weights: bool = False, init_delay: float = 0.0):
+    def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0):
         super().__init__()
         # reuse modules (share weights)
         self.dwconv = orig_block.dwconv
         self.pw1 = orig_block.pwconv1
         self.pw2 = orig_block.pwconv2
-        self.force_positive_weights = force_positive_weights
         self.gamma = getattr(orig_block, 'gamma', None)
         self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
         self.t_min = float(t_min)
@@ -181,12 +180,6 @@ class SpikingBlock(nn.Module):
 
         self.D_mid = nn.Parameter(torch.zeros(self.pw1.out_features))
         self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
-        # Optionally initialize delays to a small positive value (helps push spikes later early)
-        self._init_delay = float(init_delay)
-        if self._init_delay > 0.0:
-            with torch.no_grad():
-                self.D_mid.data.fill_(self._init_delay)
-                self.D_out.data.fill_(self._init_delay)
 
 
     def forward(self, tj):
@@ -201,20 +194,19 @@ class SpikingBlock(nn.Module):
 
         # pw1
         # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
-        # optionally enforce non-negative pointwise weights (encourages sparsity / pruning)
-        W1 = (torch.relu(self.pw1.weight) if self.force_positive_weights else self.pw1.weight).t().contiguous()  # (C_in, C_mid)
+        W1 = self.pw1.weight.t().contiguous()  # (C_in, C_mid)
         device = x_flat.device
         dtype = x_flat.dtype
-        # Use learned per-output delays (non-negative and bounded) instead of zeros
-        # self.D_mid is a parameter created at init; clamp it to a sensible max
-        D_mid = torch.clamp(torch.relu(self.D_mid), max=0.9 * (self.t_max - self.t_min)).to(device=device, dtype=dtype)
+        D_mid = torch.zeros(W1.shape[1], device=device, dtype=dtype)
+        # D_mid = torch.clamp(torch.relu(self.D_mid), max=0.9 * (self.t_max - self.t_min))
         t_min = torch.tensor(self.t_min, device=device, dtype=dtype)
         t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
         t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
 
         # pw2
-        W2 = (torch.relu(self.pw2.weight) if self.force_positive_weights else self.pw2.weight).t().contiguous()  # (C_mid, C_out)
-        D_out = torch.clamp(torch.relu(self.D_out), max=0.9 * (self.t_max - self.t_min)).to(device=device, dtype=dtype)
+        W2 = self.pw2.weight.t().contiguous()  # (C_mid, C_out)
+        D_out = torch.zeros(W2.shape[1], device=device, dtype=dtype)
+        # D_out = torch.clamp(torch.relu(self.D_out), max=0.9 * (self.t_max - self.t_min))
         t_out = call_spiking_torch(t_mid, W2, D_out, None, t_min, t_max)
 
         # reshape back
@@ -223,27 +215,17 @@ class SpikingBlock(nn.Module):
         # out = tj + self.drop_path(t_out)
         out = torch.minimum(tj, self.drop_path(t_out))
 
-        # store latest output spike times for regularization/monitoring
-        # Use the final output `out` (this is what hooks and forward actually return)
-        try:
-            self.latest_spike = out.detach()
-        except Exception:
-            self.latest_spike = None
-
         return out
 
 
 class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, **kwargs):
         super().__init__(*args, **kwargs)
-        self.force_positive_weights = kwargs.get('force_positive_weights', False)
-        # accept init_delay forwarded from model constructor
-        self.init_delay = kwargs.get('init_delay', 0.0)
         # replace blocks in stages with SpikingBlock wrappers preserving weights
         for si, stage in enumerate(self.stages):
             new_blocks = []
             for b in stage:
-                spb = SpikingBlock(b, t_min=t_min, t_max=t_max, force_positive_weights=self.force_positive_weights, init_delay=self.init_delay)
+                spb = SpikingBlock(b, t_min=t_min, t_max=t_max)
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)
         # head: we need to map spike times to logits; we'll treat head as linear on features,

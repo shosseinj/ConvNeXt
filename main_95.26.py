@@ -202,16 +202,6 @@ def get_args_parser():
                         help='start epoch')
     parser.add_argument('--eval', type=str2bool, default=False,
                         help='Perform evaluation only')
-    parser.add_argument('--ttfs_power', type=float, default=1.0,
-                        help='Exponent for TTFS encoding mapping (values <1 increase sparsity)')
-    parser.add_argument('--lambda_spike', type=float, default=0.0,
-                        help='Weight for spike-rate regularization (penalizes firing)')
-    parser.add_argument('--lambda_delay', type=float, default=1e-1,
-                        help='Weight for delay regularization (encourages larger delays)')
-    parser.add_argument('--ttfs_force_pos_weights', type=str2bool, default=False,
-                        help='If true, enforce non-negative pointwise weights in spiking blocks (ReLU on pw weights)')
-    parser.add_argument('--ttfs_init_delay', type=float, default=0.0,
-                        help='Initial value for per-output delays D_mid/D_out (helps push spikes later initially)')
     parser.add_argument('--model_summary', type=str2bool, default=True,
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', type=str2bool, default=True,
@@ -328,12 +318,10 @@ def main(args):
         # instantiate spiking variant (shares weights with ConvNeXt)
         from models.convnext import ConvNeXtSpiking
         model = ConvNeXtSpiking(in_chans=3, num_classes=args.nb_classes,
-                    drop_path_rate=args.drop_path,
-                    layer_scale_init_value=args.layer_scale_init_value,
-                    head_init_scale=args.head_init_scale,
-                    t_min=args.ttfs_tmin, t_max=args.ttfs_tmax,
-                    force_positive_weights=args.ttfs_force_pos_weights,
-                    init_delay=args.ttfs_init_delay)
+                                drop_path_rate=args.drop_path,
+                                layer_scale_init_value=args.layer_scale_init_value,
+                                head_init_scale=args.head_init_scale,
+                                t_min=args.ttfs_tmin, t_max=args.ttfs_tmax)
         # If a checkpoint is provided via --finetune, load it into the spiking model now.
         # This mirrors the finetune handling below but does it early for the spiking branch.
         if args.load_weights:
@@ -580,15 +568,8 @@ def main(args):
             log_writer=log_writer, wandb_logger=wandb_logger, start_steps=epoch * num_training_steps_per_epoch,
             lr_schedule_values=lr_schedule_values, wd_schedule_values=wd_schedule_values,
             num_training_steps_per_epoch=num_training_steps_per_epoch, update_freq=args.update_freq,
-            use_amp=args.use_amp,
-            lambda_delay=args.lambda_delay,
-            lambda_spike=args.lambda_spike
+            use_amp=args.use_amp
         )
-        # Print/record the regularization values so we can track sparsity drivers
-        delay_reg = train_stats.get('delay_reg', None)
-        sparsity_reg = train_stats.get('sparsity_reg', None)
-        if delay_reg is not None or sparsity_reg is not None:
-            print(f"Epoch {epoch}: delay_reg={delay_reg:.6f} | sparsity_reg={sparsity_reg:.6f}")
         if args.output_dir and args.save_ckpt:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(

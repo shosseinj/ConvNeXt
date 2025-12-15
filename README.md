@@ -151,7 +151,7 @@ python scripts\evaluate_sparsity.py --load_weights model_ckpt_test\checkpoint-be
 ### Fine-tunning
 
 ```
-python main.py --epochs 10  --model convnext_tiny   --data_set CIFAR   --data_path ../CIFAR-10-images/train --eval_data_path ../CIFAR-10-images/test  --nb_classes 10    --num_workers 8        --warmup_epochs 0      --save_ckpt true     --output_dir model_ckpt2   --load_weights .\checkpoint-best-SNN.pth    --cutmix 0            --mixup 0 --lr 4e-4 --finetune True
+python main.py --epochs 300  --model convnext_tiny   --data_set CIFAR   --data_path ../CIFAR-10-images/train --eval_data_path ../CIFAR-10-images/test  --nb_classes 10    --num_workers 8        --warmup_epochs 0      --save_ckpt true     --output_dir ckpt   --load_weights .\best_ckpt\checkpoint-298.pth    --cutmix 0            --mixup 0 --lr 4e-4 --finetune True
 ```
 
 ### Github Code

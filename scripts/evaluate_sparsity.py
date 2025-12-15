@@ -71,7 +71,8 @@ def main():
                             drop_path_rate=args.drop_path,
                             layer_scale_init_value=args.layer_scale_init_value,
                             head_init_scale=args.head_init_scale,
-                            t_min=args.ttfs_tmin, t_max=args.ttfs_tmax)
+                            t_min=args.ttfs_tmin, t_max=args.ttfs_tmax,
+                            force_positive_weights=args.ttfs_force_pos_weights)
 
     # load checkpoint
     if args.load_weights:

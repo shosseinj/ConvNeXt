@@ -21,7 +21,28 @@ def delay_regularization(model):
             reg = reg + torch.mean(torch.relu(m.D_mid))
         if hasattr(m, 'D_out'):
             reg = reg + torch.mean(torch.relu(m.D_out))
+    # return negative so that adding lambda * delay_regularization encourages larger delays
     return -reg
+
+
+def spike_regularization(model, eps=1e-6):
+    """Compute mean *sparsity* (fraction silent) across modules that expose `latest_spike`.
+    Returns a scalar tensor in [0,1] representing fraction of outputs that are silent (t >= t_max).
+    This aligns with `SparsityHook` (which measures `spike_time >= t_max`)."""
+    regs = []
+    for m in model.modules():
+        if hasattr(m, 'latest_spike') and m.latest_spike is not None:
+            ts = m.latest_spike
+            tmax = getattr(m, 't_max', None)
+            if tmax is None:
+                tmax = 1.0
+            try:
+                regs.append(torch.mean((ts >= (tmax - eps)).float()))
+            except Exception:
+                continue
+    if len(regs) == 0:
+        return torch.tensor(0.0)
+    return torch.stack(regs).mean()
 
 
 
@@ -30,7 +51,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     device: torch.device, epoch: int, loss_scaler, max_norm: float = 0,
                     model_ema: Optional[ModelEma] = None, mixup_fn: Optional[Mixup] = None, log_writer=None,
                     wandb_logger=None, start_steps=None, lr_schedule_values=None, wd_schedule_values=None,
-                    num_training_steps_per_epoch=None, update_freq=None, use_amp=False):
+                    num_training_steps_per_epoch=None, update_freq=None, use_amp=False,
+                    lambda_delay: float = 0.1, lambda_spike: float = 0.0):
     model.train(True)
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -68,9 +90,12 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             loss_cls  = criterion(output, targets)
 # HOSESIN
         loss_delay = delay_regularization(model)
+        sparsity_reg = spike_regularization(model)  # fractional sparsity across modules
 
-        lambda_delay = 1e-1  # start small
-        loss = loss_cls + lambda_delay * loss_delay
+        # combine losses: delay term encourages larger delays (delay_regularization returns negative reg)
+        # lambda_spike retains its name but is applied to sparsity_reg (penalize firing by encouraging silence)
+        firing_reg = 1.0 - sparsity_reg       
+        loss = loss_cls + lambda_delay * loss_delay + lambda_spike * firing_reg
         # HOSSEIN
         loss_value = loss.item()
 
@@ -106,6 +131,13 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             class_acc = None
         metric_logger.update(loss=loss_value)
         metric_logger.update(class_acc=class_acc)
+        # log regularization scalars so they appear in per-epoch stats
+        try:
+            metric_logger.update(delay_reg=loss_delay.item())
+            metric_logger.update(sparsity_reg=sparsity_reg.item())
+        except Exception:
+            # if they are not scalars or not available, skip
+            pass
         min_lr = 10.
         max_lr = 0.
         for group in optimizer.param_groups:
@@ -131,6 +163,9 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             if use_amp:
                 log_writer.update(grad_norm=grad_norm, head="opt")
             log_writer.set_step()
+            # log regularization terms
+            log_writer.update(delay_reg=loss_delay.item(), head="loss")
+            log_writer.update(sparsity_reg=sparsity_reg.item(), head="loss")
 
         if wandb_logger:
             wandb_logger._wandb.log({
@@ -142,7 +177,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                 wandb_logger._wandb.log({'Rank-0 Batch Wise/train_class_acc': class_acc}, commit=False)
             if use_amp:
                 wandb_logger._wandb.log({'Rank-0 Batch Wise/train_grad_norm': grad_norm}, commit=False)
-            wandb_logger._wandb.log({'Rank-0 Batch Wise/global_train_step': it})
+            # log regularization metrics
+            wandb_logger._wandb.log({'Rank-0 Batch Wise/global_train_step': it,
+                                          'Rank-0 Batch Wise/delay_reg': loss_delay.item(),
+                                          'Rank-0 Batch Wise/sparsity_reg': sparsity_reg.item()}, commit=False)
             
 
     # gather the stats from all processes
