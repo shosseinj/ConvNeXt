@@ -82,6 +82,33 @@ class Block(nn.Module):
         x = input + self.drop_path(x)
         return x
 
+    def get_sparsity(self):
+        """Calculate sparsity for each sub-layer in this block"""
+        sparsity_dict = {}
+        
+        # Depthwise conv sparsity
+        dwconv_weights = self.dwconv.weight.data
+        dwconv_zeros = (dwconv_weights == 0).sum().item()
+        dwconv_total = dwconv_weights.numel()
+        sparsity_dict['dwconv'] = dwconv_zeros / dwconv_total if dwconv_total > 0 else 0.0
+        
+        # First pointwise conv sparsity
+        pwconv1_weights = self.pwconv1.weight.data
+        pwconv1_zeros = (pwconv1_weights == 0).sum().item()
+        pwconv1_total = pwconv1_weights.numel()
+        sparsity_dict['pwconv1'] = pwconv1_zeros / pwconv1_total if pwconv1_total > 0 else 0.0
+        
+        # Second pointwise conv sparsity
+        pwconv2_weights = self.pwconv2.weight.data
+        pwconv2_zeros = (pwconv2_weights == 0).sum().item()
+        pwconv2_total = pwconv2_weights.numel()
+        sparsity_dict['pwconv2'] = pwconv2_zeros / pwconv2_total if pwconv2_total > 0 else 0.0
+        
+        # Average sparsity for this block
+        sparsity_dict['block_avg'] = (sparsity_dict['dwconv'] + sparsity_dict['pwconv1'] + sparsity_dict['pwconv2']) / 3
+        
+        return sparsity_dict
+
     
     
 
@@ -188,6 +215,33 @@ class SpikingBlock(nn.Module):
                 self.D_mid.data.fill_(self._init_delay)
                 self.D_out.data.fill_(self._init_delay)
 
+    def get_sparsity(self):
+        """Calculate sparsity for each sub-layer in this spiking block"""
+        sparsity_dict = {}
+        
+        # Depthwise conv sparsity
+        dwconv_weights = self.dwconv.weight.data
+        dwconv_zeros = (dwconv_weights == 0).sum().item()
+        dwconv_total = dwconv_weights.numel()
+        sparsity_dict['dwconv'] = dwconv_zeros / dwconv_total if dwconv_total > 0 else 0.0
+        
+        # First pointwise conv sparsity
+        pw1_weights = self.pw1.weight.data
+        pw1_zeros = (pw1_weights == 0).sum().item()
+        pw1_total = pw1_weights.numel()
+        sparsity_dict['pw1'] = pw1_zeros / pw1_total if pw1_total > 0 else 0.0
+        
+        # Second pointwise conv sparsity
+        pw2_weights = self.pw2.weight.data
+        pw2_zeros = (pw2_weights == 0).sum().item()
+        pw2_total = pw2_weights.numel()
+        sparsity_dict['pw2'] = pw2_zeros / pw2_total if pw2_total > 0 else 0.0
+        
+        # Average sparsity for this block
+        sparsity_dict['block_avg'] = (sparsity_dict['dwconv'] + sparsity_dict['pw1'] + sparsity_dict['pw2']) / 3
+        
+        return sparsity_dict
+
 
     def forward(self, tj):
         # tj: spike times tensor (N, C, H, W)
@@ -239,11 +293,21 @@ class ConvNeXtSpiking(ConvNeXt):
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         # accept init_delay forwarded from model constructor
         self.init_delay = kwargs.get('init_delay', 0.0)
+        # stage_specific_delays: list of 4 delay values, one per stage (overrides init_delay if provided)
+        # Example: [0.3, 0.1, 0.05, 0.02] for higher sparsity in early stages
+        self.stage_delays = kwargs.get('stage_delays', None)
+        
         # replace blocks in stages with SpikingBlock wrappers preserving weights
         for si, stage in enumerate(self.stages):
+            # Determine delay for this stage
+            if self.stage_delays is not None and si < len(self.stage_delays):
+                stage_delay = self.stage_delays[si]
+            else:
+                stage_delay = self.init_delay
+            
             new_blocks = []
             for b in stage:
-                spb = SpikingBlock(b, t_min=t_min, t_max=t_max, force_positive_weights=self.force_positive_weights, init_delay=self.init_delay)
+                spb = SpikingBlock(b, t_min=t_min, t_max=t_max, force_positive_weights=self.force_positive_weights, init_delay=stage_delay)
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)
         # head: we need to map spike times to logits; we'll treat head as linear on features,
@@ -268,34 +332,74 @@ class ConvNeXtSpiking(ConvNeXt):
         # convert times to scores: earlier spike -> higher score; simple mapping s = -t
         logits = self.head(-x_pool)
         return logits
+
+    def get_layer_sparsity(self):
+        """
+        Calculate and return per-layer sparsity statistics for all blocks.
+        Returns a dictionary with sparsity info for each stage and block.
+        """
+        sparsity_report = {}
+        
+        # Calculate sparsity for each stage and block
+        for stage_idx, stage in enumerate(self.stages):
+            sparsity_report[f'stage_{stage_idx}'] = {}
+            stage_sparsities = []
+            
+            for block_idx, block in enumerate(stage):
+                if isinstance(block, SpikingBlock):
+                    block_sparsity = block.get_sparsity()
+                    sparsity_report[f'stage_{stage_idx}'][f'block_{block_idx}'] = block_sparsity
+                    stage_sparsities.append(block_sparsity['block_avg'])
+            
+            # Average sparsity for this stage
+            if stage_sparsities:
+                sparsity_report[f'stage_{stage_idx}']['stage_avg'] = sum(stage_sparsities) / len(stage_sparsities)
+        
+        # Calculate global average sparsity
+        all_block_avgs = []
+        for stage_idx, stage in enumerate(self.stages):
+            if f'stage_{stage_idx}' in sparsity_report and 'stage_avg' in sparsity_report[f'stage_{stage_idx}']:
+                all_block_avgs.append(sparsity_report[f'stage_{stage_idx}']['stage_avg'])
+        
+        sparsity_report['global_avg'] = sum(all_block_avgs) / len(all_block_avgs) if all_block_avgs else 0.0
+        
+        return sparsity_report
+
+    def print_layer_sparsity(self):
+        """
+        Print formatted per-layer sparsity statistics for academic reporting.
+        This method displays weight sparsity (zero weights in parameters).
+        For activation sparsity, use evaluate_sparsity.py instead.
+        """
+        sparsity_report = self.get_layer_sparsity()
+        print("\n" + "="*80)
+        print("WEIGHT SPARSITY REPORT (Zero Weights in Model Parameters)")
+        print("="*80)
+        print("Note: Weight sparsity = 0 indicates model learned dense, non-zero weights")
+        print("For activation sparsity during inference, refer to evaluate_sparsity.py\n")
+        
+        for stage_idx in range(4):
+            stage_key = f'stage_{stage_idx}'
+            if stage_key in sparsity_report:
+                print(f"Stage {stage_idx}:")
+                for block_idx in range(len(self.stages[stage_idx])):
+                    block_key = f'block_{block_idx}'
+                    if block_key in sparsity_report[stage_key]:
+                        block_sparsity = sparsity_report[stage_key][block_key]
+                        print(f"  Block {block_idx}:")
+                        print(f"    dwconv:    {block_sparsity['dwconv']:.4f}")
+                        print(f"    pw1:       {block_sparsity['pw1']:.4f}")
+                        print(f"    pw2:       {block_sparsity['pw2']:.4f}")
+                        print(f"    block_avg: {block_sparsity['block_avg']:.4f}")
+                
+                # Stage average
+                if 'stage_avg' in sparsity_report[stage_key]:
+                    print(f"  Stage Average: {sparsity_report[stage_key]['stage_avg']:.4f}\n")
+        
+        print(f"Global Average Weight Sparsity: {sparsity_report['global_avg']:.4f}")
+        print("="*80 + "\n")
     
 
-
-class LayerNorm(nn.Module):
-    r""" LayerNorm that supports two data formats: channels_last (default) or channels_first. 
-    The ordering of the dimensions in the inputs. channels_last corresponds to inputs with 
-    shape (batch_size, height, width, channels) while channels_first corresponds to inputs 
-    with shape (batch_size, channels, height, width).
-    """
-    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(normalized_shape))
-        self.bias = nn.Parameter(torch.zeros(normalized_shape))
-        self.eps = eps
-        self.data_format = data_format
-        if self.data_format not in ["channels_last", "channels_first"]:
-            raise NotImplementedError 
-        self.normalized_shape = (normalized_shape, )
-    
-    def forward(self, x):
-        if self.data_format == "channels_last":
-            return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
-        elif self.data_format == "channels_first":
-            u = x.mean(1, keepdim=True)
-            s = (x - u).pow(2).mean(1, keepdim=True)
-            x = (x - u) / torch.sqrt(s + self.eps)
-            x = self.weight[:, None, None] * x + self.bias[:, None, None]
-            return x
 
 
 model_urls = {

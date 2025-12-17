@@ -139,7 +139,7 @@ python main.py --epochs 10  --model convnext_tiny   --data_set image_folder   --
 ### Evaluating and ploting
 
 ```
-python scripts\plot_predictions.py --load_weights .\ckpt_residual__min\ckpt_residual__min.pth --data_set CIFAR --eval_data_path ..\CIFAR-10-images\test --nb_samples 16 --output preds.png --eval True
+ python scripts\plot_predictions.py --load_weights .\best_ckpt\checkpoint_residual_Di_96.09.pth --data_set CIFAR --eval_data_path ..\CIFAR-10-images\test --nb_samples 16 --output preds.png --eval True
 ```
 
 ### Checking sparsity
@@ -151,7 +151,7 @@ python scripts\evaluate_sparsity.py --load_weights model_ckpt_test\checkpoint-be
 ### Fine-tunning
 
 ```
-python main.py --epochs 300  --model convnext_tiny   --data_set CIFAR   --data_path ../CIFAR-10-images/train --eval_data_path ../CIFAR-10-images/test  --nb_classes 10    --num_workers 8        --warmup_epochs 0      --save_ckpt true     --output_dir ckpt   --load_weights .\best_ckpt\checkpoint-298.pth    --cutmix 0            --mixup 0 --lr 4e-4 --finetune True
+python main.py --epochs 350  --model convnext_tiny   --data_set CIFAR   --data_path ../CIFAR-10-images/train --eval_data_path ../CIFAR-10-images/test  --nb_classes 10    --num_workers 8        --warmup_epochs 0      --save_ckpt true     --output_dir ckpt   --load_weights .\best_ckpt\checkpoint_residual_Di_96.09.pth   --cutmix 0            --mixup 0 --lr 4e-3 --finetune True --batch_size 150
 ```
 
 ### Github Code

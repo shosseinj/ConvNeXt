@@ -33,29 +33,214 @@ from engine import train_one_epoch, evaluate
 
 from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
-import models.convnext
-import models.convnext_isotropic
+
 from collections import defaultdict
 
 
 
+import torch
+import numpy as np
+
 class SparsityHook:
-    """Hook to record spike times and compute sparsity per layer."""
     def __init__(self, layer_name, t_max=1.0):
         self.layer_name = layer_name
         self.t_max = t_max
-        self.spike_times = []
         self.sparsity = 0.0
+        self.num_silent = 0
+        self.num_total = 0
 
     def __call__(self, module, input, output):
-        # output is spike_times tensor (batch, ...)
-        if isinstance(output, torch.Tensor):
-            spike_times = output.detach()
-            # count neurons where spike_time == t_max (never spiked)
-            silent = (spike_times >= self.t_max - 1e-6).float()
-            sparsity = silent.mean().item()
-            self.sparsity = sparsity
-            self.spike_times.append(spike_times)
+        if not isinstance(output, torch.Tensor):
+            return
+
+        spike_times = output.detach()
+        threshold = self.t_max - 1e-6
+
+        silent = (spike_times >= threshold)
+        self.num_silent = silent.sum().item()
+        self.num_total = spike_times.numel()
+
+        self.sparsity = (
+            self.num_silent / self.num_total
+            if self.num_total > 0 else 0.0
+        )
+
+
+class WeightSparsityHook:
+    """Hook to measure weight sparsity for regular Conv2d layers (non-spiking downsampling)."""
+    def __init__(self, layer_name):
+        self.layer_name = layer_name
+        self.sparsity = 0.0
+        self.num_zeros = 0
+        self.num_total = 0
+        
+    def __call__(self, module, input, output):
+        # For Conv2d layers, measure weight sparsity
+        if isinstance(module, nn.Conv2d) and module.weight is not None:
+            weights = module.weight.data
+            self.num_zeros = (weights == 0).sum().item()
+            self.num_total = weights.numel()
+            self.sparsity = (
+                self.num_zeros / self.num_total
+                if self.num_total > 0 else 0.0
+            )
+
+
+
+
+def evaluate_snn_sparsity(
+    model,
+    loader,
+    device,
+    hooks,
+    args,
+):
+    model.eval()
+
+    correct = 0
+    total = 0
+
+    # store per-layer sparsity history
+    spike_sparsities = {name: [] for name in hooks.keys()}
+
+    # batch-wise global sparsity (optional)
+    batch_sparsities = []
+
+    # TRUE global accumulators
+    global_silent_all = 0
+    global_total_all = 0
+
+    with torch.no_grad():
+        for batch_idx, (img, label) in enumerate(loader):
+            if args.nb_batches and batch_idx >= args.nb_batches:
+                break
+
+            img = img.to(device)
+            label = label.to(device)
+
+            # --------------------
+            # Forward
+            # --------------------
+            logits = model(img)
+            pred = logits.argmax(dim=1)
+
+            correct += (pred == label).sum().item()
+            total += label.size(0)
+
+            # --------------------
+            # Collect sparsity stats
+            # --------------------
+            batch_total_silent = 0
+            batch_total_neurons = 0
+
+            for layer_name, hook in hooks.items():
+                # Activation sparsity (Spiking layers)
+                if hasattr(hook, "num_silent"):
+                    spike_sparsities[layer_name].append(hook.sparsity)
+
+                    batch_total_silent += hook.num_silent
+                    batch_total_neurons += hook.num_total
+
+                    global_silent_all += hook.num_silent
+                    global_total_all += hook.num_total
+
+                # Weight sparsity (Conv downsampling etc.)
+                elif hasattr(hook, "num_zeros"):
+                    spike_sparsities[layer_name].append(hook.sparsity)
+
+                    batch_total_silent += hook.num_zeros
+                    batch_total_neurons += hook.num_total
+
+                    global_silent_all += hook.num_zeros
+                    global_total_all += hook.num_total
+
+            # --------------------
+            # Batch-wise global sparsity (optional)
+            # --------------------
+            if batch_total_neurons > 0:
+                batch_global_sparsity = batch_total_silent / batch_total_neurons
+            else:
+                batch_global_sparsity = 0.0
+
+            if batch_idx == 0 or (batch_idx + 1) % 10 == 0:
+                batch_sparsities.append(batch_global_sparsity)
+
+    # ==========================================================
+    # FINAL REPORT
+    # ==========================================================
+    acc = 100.0 * correct / total if total > 0 else 0.0
+
+    print("\n" + "=" * 60)
+    print("SNN EVALUATION SUMMARY")
+    print("=" * 60)
+    print(f"Accuracy: {acc:.2f}%")
+    print(f"Processed samples: {total}")
+
+    if hooks:
+        print("\nPer-Layer Sparsity Analysis:")
+        print("=" * 60)
+
+        spiking_hooks = {k: v for k, v in hooks.items() if hasattr(v, "num_silent")}
+        weight_hooks = {k: v for k, v in hooks.items() if hasattr(v, "num_zeros")}
+
+        # --------------------
+        # Activation sparsity
+        # --------------------
+        if spiking_hooks:
+            print("\nACTIVATION SPARSITY (Spiking Layers):")
+            print("(% of neurons silent during the time window)\n")
+
+            for layer_name in sorted(spiking_hooks.keys()):
+                avg_layer_sparsity = np.mean(spike_sparsities[layer_name])
+                hook = spiking_hooks[layer_name]
+
+                print(
+                    f"{layer_name:<35} "
+                    f"{100.0 * avg_layer_sparsity:6.2f}% "
+                    f"(silent: {int(hook.num_silent)}/{int(hook.num_total)})"
+                )
+
+        # --------------------
+        # Weight sparsity
+        # --------------------
+        if weight_hooks:
+            print("\nWEIGHT SPARSITY (Downsampling Convs):")
+            print("(% of zero weights)\n")
+
+            for layer_name in sorted(weight_hooks.keys()):
+                avg_layer_sparsity = np.mean(spike_sparsities[layer_name])
+                hook = weight_hooks[layer_name]
+
+                print(
+                    f"{layer_name:<35} "
+                    f"{100.0 * avg_layer_sparsity:6.2f}% "
+                    f"(zeros: {int(hook.num_zeros)}/{int(hook.num_total)})"
+                )
+
+        # --------------------
+        # Correct global sparsity
+        # --------------------
+        correct_global_sparsity = (
+            global_silent_all / global_total_all
+            if global_total_all > 0 else 0.0
+        )
+
+        print("\n" + "-" * 60)
+        print(f"Correct Global SNN Sparsity: {100.0 * correct_global_sparsity:.2f}%")
+        print(
+            f"(Total silent/zero: {int(global_silent_all)} / "
+            f"Total elements: {int(global_total_all)})"
+        )
+        print("-" * 60)
+
+    return {
+        "accuracy": acc,
+        "global_sparsity": correct_global_sparsity,
+        "batch_sparsities": batch_sparsities,
+        "layer_sparsities": spike_sparsities,
+    }
+
+
 
 
 
@@ -76,8 +261,9 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=150, type=int,
+    parser.add_argument('--batch_size', default=150, type=int, 
                         help='Per GPU batch size')
+    # 150
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--update_freq', default=1, type=int,
                         help='gradient accumulation steps')
@@ -212,6 +398,8 @@ def get_args_parser():
                         help='If true, enforce non-negative pointwise weights in spiking blocks (ReLU on pw weights)')
     parser.add_argument('--ttfs_init_delay', type=float, default=0.0,
                         help='Initial value for per-output delays D_mid/D_out (helps push spikes later initially)')
+    parser.add_argument('--ttfs_stage_delays', type=str, default="0.4,0.0,0.0,0.0",
+                        help='Comma-separated stage-specific delays (e.g., "0.3,0.1,0.05,0.02" for 4 stages). Overrides ttfs_init_delay.')
     parser.add_argument('--model_summary', type=str2bool, default=True,
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', type=str2bool, default=True,
@@ -327,13 +515,27 @@ def main(args):
     if getattr(args, 'spiking', False):
         # instantiate spiking variant (shares weights with ConvNeXt)
         from models.convnext import ConvNeXtSpiking
+        
+        # Parse stage-specific delays if provided
+        stage_delays = None
+        if args.ttfs_stage_delays:
+            try:
+                stage_delays = [float(d.strip()) for d in args.ttfs_stage_delays.split(',')]
+                if len(stage_delays) != 4:
+                    print(f"Warning: ttfs_stage_delays should have 4 values, got {len(stage_delays)}. Using ttfs_init_delay instead.")
+                    stage_delays = None
+            except ValueError:
+                print(f"Warning: Failed to parse ttfs_stage_delays '{args.ttfs_stage_delays}'. Using ttfs_init_delay instead.")
+                stage_delays = None
+        
         model = ConvNeXtSpiking(in_chans=3, num_classes=args.nb_classes,
                     drop_path_rate=args.drop_path,
                     layer_scale_init_value=args.layer_scale_init_value,
                     head_init_scale=args.head_init_scale,
                     t_min=args.ttfs_tmin, t_max=args.ttfs_tmax,
                     force_positive_weights=args.ttfs_force_pos_weights,
-                    init_delay=args.ttfs_init_delay)
+                    init_delay=args.ttfs_init_delay,
+                    stage_delays=stage_delays)
         # If a checkpoint is provided via --finetune, load it into the spiking model now.
         # This mirrors the finetune handling below but does it early for the spiking branch.
         if args.load_weights:
@@ -525,55 +727,99 @@ def main(args):
         if wandb_logger:
             wandb_logger.set_steps()
        
+
+
+        hooks = {}
+        hook_handles = []
+
+        for name, module in model.named_modules():
+            # Register SparsityHook for spiking blocks (measures activation sparsity)
+            if hasattr(module, "t_max"):
+                hook = SparsityHook(layer_name=name, t_max=args.ttfs_tmax)
+                handle = module.register_forward_hook(hook)
+                hooks[name] = hook
+                hook_handles.append(handle)
+            # Register WeightSparsityHook for Conv2d layers in downsampling (non-spiking)
+            elif isinstance(module, nn.Conv2d) and 'downsample_layers' in name:
+                hook = WeightSparsityHook(layer_name=name)
+                handle = module.register_forward_hook(hook)
+                hooks[name] = hook
+                hook_handles.append(handle)
+
+        print(f"Registered {len(hooks)} sparsity hooks (SpikingBlocks + Downsampling Conv2d layers).")
+
+        # -------------------------------------------------
+        # Evaluate model sparsity
+        # -------------------------------------------------
+
+
+        results = evaluate_snn_sparsity(
+            model=model,
+            loader=data_loader_val,
+            device=device,
+            hooks=hooks,
+            args=args,
+        )
+
+        current_acc = results["accuracy"]
+
+        print(f"\nEvaluation Accuracy: {current_acc:.2f}%")
+
+        # -------------------------------------------------
+        # SAVE BEST MODEL
+        # -------------------------------------------------
+     
+
+
                 
-        print(f"\nEvaluating sparsity on {len(dataset_val)} samples...")
-        print(f"Time window: t_min={args.ttfs_tmin}, t_max={args.ttfs_tmax}")
-        print(f"Model: {args.model}, Spiking={args.spiking}, TTFS_convert={args.ttfs_convert}\n")
+        # print(f"\nEvaluating sparsity on {len(dataset_val)} samples...")
+        # print(f"Time window: t_min={args.ttfs_tmin}, t_max={args.ttfs_tmax}")
+        # print(f"Model: {args.model}, Spiking={args.spiking}, TTFS_convert={args.ttfs_convert}\n")
 
-        correct = 0
-        total = 0
-        batch_sparsities = []
+        # correct = 0
+        # total = 0
+        # batch_sparsities = []
 
-        with torch.no_grad():
-            for batch_idx, (img, label) in enumerate(data_loader_val):
-                if args.nb_batches and batch_idx >= args.nb_batches:
-                    break
+        # with torch.no_grad():
+        #     for batch_idx, (img, label) in enumerate(data_loader_val):
+        #         if args.nb_batches and batch_idx >= args.nb_batches:
+        #             break
 
-                img = img.to(device)
-                label = label.to(device)
+        #         img = img.to(device)
+        #         label = label.to(device)
 
-                logits = model(img)
-                pred = logits.argmax(dim=1)
-                correct += (pred == label).sum().item()
-                total += label.size(0)
+        #         logits = model(img)
+        #         pred = logits.argmax(dim=1)
+        #         correct += (pred == label).sum().item()
+        #         total += label.size(0)
 
-                # collect per-layer sparsities from this batch
-                for layer_name, hook in hooks.items():
-                    layer_sparsities[layer_name].append(hook.sparsity)
+        #         # collect per-layer sparsities from this batch
+        #         for layer_name, hook in hooks.items():
+        #             layer_sparsities[layer_name].append(hook.sparsity)
 
-                if (batch_idx + 1) % 10 == 0 or batch_idx == 0:
-                    avg_sparsity = np.mean([h.sparsity for h in hooks.values()]) if hooks else 0.0
-                    batch_sparsities.append(avg_sparsity)
-                    print(f"Batch [{batch_idx + 1}/{len(data_loader_val) if not args.nb_batches else min(args.nb_batches, len(data_loader_val))}] "
-                        f"Accuracy: {100.0 * correct / total:.2f}% | "
-                        f"Avg Layer Sparsity: {100.0 * avg_sparsity:.2f}%")
+        #         if (batch_idx + 1) % 10 == 0 or batch_idx == 0:
+        #             avg_sparsity = np.mean([h.sparsity for h in hooks.values()]) if hooks else 0.0
+        #             batch_sparsities.append(avg_sparsity)
+        #             print(f"Batch [{batch_idx + 1}/{len(data_loader_val) if not args.nb_batches else min(args.nb_batches, len(data_loader_val))}] "
+        #                 f"Accuracy: {100.0 * correct / total:.2f}% | "
+        #                 f"Avg Layer Sparsity: {100.0 * avg_sparsity:.2f}%")
 
-        # final stats
-                final_accuracy = 100.0 * correct / total
-                overall_sparsity = np.mean(batch_sparsities) if batch_sparsities else 0.0
+        # # final stats
+        #         final_accuracy = 100.0 * correct / total
+        #         overall_sparsity = np.mean(batch_sparsities) if batch_sparsities else 0.0
 
-        print(f"\n{'='*70}")
-        print(f"FINAL EVALUATION RESULTS")
-        print(f"{'='*70}")
-        print(f"Overall Accuracy: {final_accuracy:.2f}%")
-        print(f"Overall Average Sparsity: {overall_sparsity:.2f}%")
-        print(f"Total samples evaluated: {total}")
-        print(f"\nPer-Layer Average Sparsities:")
-        for layer_name in sorted(hooks.keys()):
-            avg_sparsity = np.mean(layer_sparsities[layer_name])
-            print(f"  {layer_name}: {100.0 * avg_sparsity:.2f}%")
+        # print(f"\n{'='*70}")
+        # print(f"FINAL EVALUATION RESULTS")
+        # print(f"{'='*70}")
+        # print(f"Overall Accuracy: {final_accuracy:.2f}%")
+        # print(f"Overall Average Sparsity: {overall_sparsity:.2f}%")
+        # print(f"Total samples evaluated: {total}")
+        # print(f"\nPer-Layer Average Sparsities:")
+        # for layer_name in sorted(hooks.keys()):
+        #     avg_sparsity = np.mean(layer_sparsities[layer_name])
+        #     print(f"  {layer_name}: {100.0 * avg_sparsity:.2f}%")
 
-        print(f"{'='*70}")
+        # print(f"{'='*70}")
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer,
             device, epoch, loss_scaler, args.clip_grad, model_ema, mixup_fn,
@@ -593,8 +839,20 @@ def main(args):
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(
                     args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                    loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)       
-                
+                    loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)      
+                 
+        if current_acc > max_accuracy:
+            max_accuracy = current_acc
+            print(f"New best accuracy: {max_accuracy:.2f}% — saving model")
+
+            if args.output_dir and args.save_ckpt:
+                utils.save_model(
+                    args=args,
+                    model=model,
+                    model_without_ddp=model,   # no DDP in eval
+                    optimizer=optimizer,
+                    loss_scaler=loss_scaler, epoch="best", model_ema=model_ema
+                )
         if data_loader_val is not None and False:
             test_stats = evaluate(data_loader_val, model, device, use_amp=args.use_amp)
             print(f"Accuracy of the model on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
