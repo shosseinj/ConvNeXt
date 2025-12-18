@@ -398,7 +398,7 @@ def get_args_parser():
                         help='If true, enforce non-negative pointwise weights in spiking blocks (ReLU on pw weights)')
     parser.add_argument('--ttfs_init_delay', type=float, default=0.0,
                         help='Initial value for per-output delays D_mid/D_out (helps push spikes later initially)')
-    parser.add_argument('--ttfs_stage_delays', type=str, default="0.4,0.0,0.0,0.0",
+    parser.add_argument('--ttfs_stage_delays', type=str, default="0.4,0.0,0.00,0.0",
                         help='Comma-separated stage-specific delays (e.g., "0.3,0.1,0.05,0.02" for 4 stages). Overrides ttfs_init_delay.')
     parser.add_argument('--model_summary', type=str2bool, default=True,
                         help='Perform evaluation only')
@@ -753,17 +753,7 @@ def main(args):
         # -------------------------------------------------
 
 
-        results = evaluate_snn_sparsity(
-            model=model,
-            loader=data_loader_val,
-            device=device,
-            hooks=hooks,
-            args=args,
-        )
-
-        current_acc = results["accuracy"]
-
-        print(f"\nEvaluation Accuracy: {current_acc:.2f}%")
+     
 
         # -------------------------------------------------
         # SAVE BEST MODEL
@@ -830,6 +820,17 @@ def main(args):
             lambda_delay=args.lambda_delay,
             lambda_spike=args.lambda_spike
         )
+        results = evaluate_snn_sparsity(
+            model=model,
+            loader=data_loader_val,
+            device=device,
+            hooks=hooks,
+            args=args,
+        )
+
+        current_acc = results["accuracy"]
+
+        print(f"\nEvaluation Accuracy: {current_acc:.2f}%")
         # Print/record the regularization values so we can track sparsity drivers
         delay_reg = train_stats.get('delay_reg', None)
         sparsity_reg = train_stats.get('sparsity_reg', None)
