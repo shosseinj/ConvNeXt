@@ -323,7 +323,7 @@ def get_args_parser():
 
     # Checkpoint
     # parser.add_argument('--load_weights', default='./ckpt_residual_Di_96.09/checkpoint-298.pth', type=str)
-    parser.add_argument('--load_weights', default='./ckpt_residual_Di_96.09/checkpoint_residual_Di_96.09.pth', type=str)
+    parser.add_argument('--load_weights', default='./weights/ckpt_residual_Di_96.09/checkpoint_residual_Di_96.09.pth', type=str)
     parser.add_argument('--model_key', default='model|module', type=str)
     parser.add_argument('--model_prefix', default='', type=str)
 
@@ -345,8 +345,6 @@ def get_args_parser():
     parser.add_argument('--log_dir', default=None)
     parser.add_argument('--seed', default=0, type=int)
 
-    # ... (keep all existing arguments as in your code) ...
-    # Add new argument for analog MACs
     parser.add_argument('--analog_macs', type=float, default=306000000,
                         help='Pre-computed MACs of the analog ConvNeXt. If not provided and thop is available, will try to compute.')
     return parser

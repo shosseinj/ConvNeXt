@@ -1,4 +1,0 @@
-Checkpoint: ./best_ckpt/checkpoint_residual_Di_96.09.pth
-Accuracy: 52.63%
-Global sparsity: 37.42%
-Evaluated samples: 10000
