@@ -18,7 +18,8 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from torch._six import inf
+import math
+inf = math.inf
 
 from tensorboardX import SummaryWriter
 
@@ -443,11 +444,17 @@ def cosine_scheduler(base_value, final_value, epochs, niter_per_ep, warmup_epoch
 
     assert len(schedule) == epochs * niter_per_ep
     return schedule
-
-def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
+def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None, accuracy=None):
     output_dir = Path(args.output_dir)
     epoch_name = str(epoch)
-    checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name)]
+    
+    # Add accuracy to filename if provided
+    if accuracy is not None:
+        acc_str = f"{accuracy:.2f}".replace('.', '_')
+        checkpoint_paths = [output_dir / f'checkpoint-{epoch_name}-acc{acc_str}.pth']
+    else:
+        checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name)]
+    
     for checkpoint_path in checkpoint_paths:
         to_save = {
             'model': model_without_ddp.state_dict(),
@@ -456,6 +463,9 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, mo
             'scaler': loss_scaler.state_dict(),
             'args': args,
         }
+
+        if accuracy is not None:
+            to_save['accuracy'] = accuracy
 
         if model_ema is not None:
             to_save['model_ema'] = get_state_dict(model_ema)
@@ -467,7 +477,12 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, mo
         old_ckpt = output_dir / ('checkpoint-%s.pth' % to_del)
         if os.path.exists(old_ckpt):
             os.remove(old_ckpt)
-
+        
+        # Also clean old accuracy-named checkpoints
+        import glob
+        old_pattern = output_dir / f'checkpoint-{to_del}-acc*.pth'
+        for old_file in glob.glob(str(old_pattern)):
+            os.remove(old_file)
 
 def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
     output_dir = Path(args.output_dir)

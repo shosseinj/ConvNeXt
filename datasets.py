@@ -97,8 +97,7 @@ def build_dataset(is_train, args):
         # nb_classes = args.nb_classes
 
 
-        dataset = datasets.CIFAR10(args.data_path, train=is_train, transform=transform, download=True)
-        # dataset = datasets.CIFAR10(args.data_path, train=is_train, transform=transform, download=True)
+        dataset = datasets.CIFAR10(args.data_path, train=is_train, transform=transform, download=True)         # dataset = datasets.CIFAR10(args.data_path, train=is_train, transform=transform, download=True)
         nb_classes = 10
 
 
@@ -108,7 +107,7 @@ def build_dataset(is_train, args):
     print("Number of the class = %d" % nb_classes)
 
     # Optionally wrap dataset to perform TTFS encoding (time-to-first-spike)
-    if getattr(args, 'ttfs_convert', False):
+    if getattr(args, 'ttfs_convert', True):
         # Use dataset-specific mean/std for reversing normalization before TTFS encoding
         # if getattr(args, 'data_set', None) == 'CIFAR':
         #     # CIFAR mean/std (common convention for CIFAR-10/100)
