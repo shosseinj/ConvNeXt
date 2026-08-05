@@ -288,7 +288,7 @@ def str2bool(v):
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt evaluation (accuracy + sparsity + SynOps)', add_help=False)
 
-    parser.add_argument('--data_path', default='./cifar_data/', type=str)
+    parser.add_argument('--data_path', default='../cifar_data/', type=str)
     parser.add_argument('--eval_data_path', default=None, type=str)
     parser.add_argument('--nb_classes', default=10, type=int)
     parser.add_argument('--imagenet_default_mean_and_std', type=str2bool, default=True)
@@ -449,7 +449,7 @@ def main(args):
     # Optional: per-layer SynOps breakdown
     print("\nPer-layer SynOps (top 10 contributors):")
     sorted_layers = sorted(synops_details.items(), key=lambda x: -x[1]['SynOps'])
-    for name, detail in synops_details:
+    for name, detail in sorted_layers[:10]:
         print(f"  {name:<50} SynOps={detail['SynOps']:.0f}  (sparsity={detail['sparsity (%)']:.1f}%, fan_out={detail['fan_out']})")
 
 
