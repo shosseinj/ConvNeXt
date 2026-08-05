@@ -409,7 +409,10 @@ def main(args):
                 new_sd[k[7:]] = v
             else:
                 new_sd[k] = v
-        model.load_state_dict(new_sd, strict=False)
+        load_result = model.load_state_dict(new_sd, strict=False)
+
+        print("Missing keys:", load_result.missing_keys)
+        print("Unexpected keys:", load_result.unexpected_keys)
         print("Checkpoint loaded.")
 
     model = model.to(device)
