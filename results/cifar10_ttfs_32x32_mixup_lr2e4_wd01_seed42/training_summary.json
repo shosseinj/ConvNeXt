@@ -1,0 +1,16 @@
+{
+  "best_epoch": 183,
+  "last_epoch": 199,
+  "best_validation_accuracy": 75.32,
+  "epochs_without_improvement": 16,
+  "early_stopped": false,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.127714387512207,
+    "accuracy": 74.71,
+    "samples": 10000,
+    "seconds": 17.17415189743042
+  },
+  "best_checkpoint": "results\\cifar10_ttfs_32x32_mixup_lr2e4_wd01_seed42\\best_checkpoint.pth",
+  "last_checkpoint": "results\\cifar10_ttfs_32x32_mixup_lr2e4_wd01_seed42\\last_checkpoint.pth"
+}
