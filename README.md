@@ -1,0 +1,11 @@
+python .\train_continuous_ttfs_cifar10_32x32_stem1.py `  --data_path "..\cifar_data"`
+--output_dir "results\cifar10_continuous_ttfs_32x32_stem1_seed42" `  --epochs 300`
+--batch_size 128 `  --lr 0.0005`
+--min_lr 0.000001 `  --warmup_epochs 10`
+--weight_decay 0.05 `  --label_smoothing 0.1`
+--drop_path 0.0 `  --t_min 0.0`
+--t_max 1.0 `  --force_positive_weights false`
+--init_delay 0.0 `  --stage_delays "0.4,0.0,0.0,0.0"`
+--amp true `  --num_workers 4`
+--seed 42 `
+--download false

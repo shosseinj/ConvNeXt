@@ -899,11 +899,24 @@
 # LICENSE file in the root directory of this source tree.
 
 
+import warnings
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.layers import trunc_normal_, DropPath
-from timm.models.registry import register_model
+from timm.layers import DropPath, trunc_normal_
+from timm.models import register_model
+
+
+def register_local_model(function):
+    """Register the local ConvNeXt entrypoint while silencing its expected override warning."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Overwriting convnext_.* in registry with models\.convnext\..*",
+            category=UserWarning,
+        )
+        return register_model(function)
 
 
 def call_spiking_torch(tj, W, D_i, t_min_prev, t_min, t_max):
@@ -1203,7 +1216,7 @@ model_urls = {
     "convnext_xlarge_22k": "https://dl.fbaipublicfiles.com/convnext/convnext_xlarge_22k_224.pth",
 }
 
-@register_model
+@register_local_model
 def convnext_tiny(pretrained=False,in_22k=False, **kwargs):
     model = ConvNeXt(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
     if pretrained:
@@ -1212,7 +1225,7 @@ def convnext_tiny(pretrained=False,in_22k=False, **kwargs):
         model.load_state_dict(checkpoint["model"])
     return model
 
-@register_model
+@register_local_model
 def convnext_small(pretrained=False,in_22k=False, **kwargs):
     model = ConvNeXt(depths=[3, 3, 27, 3], dims=[96, 192, 384, 768], **kwargs)
     if pretrained:
@@ -1221,7 +1234,7 @@ def convnext_small(pretrained=False,in_22k=False, **kwargs):
         model.load_state_dict(checkpoint["model"])
     return model
 
-@register_model
+@register_local_model
 def convnext_base(pretrained=False, in_22k=False, **kwargs):
     model = ConvNeXt(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024], **kwargs)
     if pretrained:
@@ -1230,7 +1243,7 @@ def convnext_base(pretrained=False, in_22k=False, **kwargs):
         model.load_state_dict(checkpoint["model"])
     return model
 
-@register_model
+@register_local_model
 def convnext_large(pretrained=False, in_22k=False, **kwargs):
     model = ConvNeXt(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536], **kwargs)
     if pretrained:
@@ -1239,7 +1252,7 @@ def convnext_large(pretrained=False, in_22k=False, **kwargs):
         model.load_state_dict(checkpoint["model"])
     return model
 
-@register_model
+@register_local_model
 def convnext_xlarge(pretrained=False, in_22k=False, **kwargs):
     model = ConvNeXt(depths=[3, 3, 27, 3], dims=[256, 512, 1024, 2048], **kwargs)
     if pretrained:
