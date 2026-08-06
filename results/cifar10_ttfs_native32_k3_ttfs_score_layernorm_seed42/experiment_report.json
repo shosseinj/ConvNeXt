@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42",
     "notes": null,
     "seed": 42,
-    "status": "early_stopped",
-    "updated_at": "2026-08-06T17:42:37+03:30"
+    "status": "running",
+    "updated_at": "2026-08-06T20:40:31+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -78,11 +78,11 @@
   "results": {
     "best_epoch": 115,
     "best_validation_accuracy": 89.8,
-    "final_train_accuracy": 89.10562670556484,
-    "final_validation_accuracy": 89.62,
+    "final_train_accuracy": 89.52814327465913,
+    "final_validation_accuracy": 89.52,
     "test_accuracy": 88.3,
     "test_loss": 0.8009320064544678,
-    "training_time_seconds": 2665.025101661682,
+    "training_time_seconds": 2928.3342661857605,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42\\best_checkpoint.pth"
   },
   "optional_evaluation": {

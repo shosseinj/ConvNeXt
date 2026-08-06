@@ -9,8 +9,8 @@
 | Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42 |
 | Notes | unknown |
 | Seed | 42 |
-| Status | early_stopped |
-| Updated At | 2026-08-06T17:42:37+03:30 |
+| Status | running |
+| Updated At | 2026-08-06T20:40:31+03:30 |
 
 ## Dataset
 
@@ -76,11 +76,11 @@
 |---|---|
 | Best Epoch | 115 |
 | Best Validation Accuracy | 89.8 |
-| Final Train Accuracy | 89.10562670556484 |
-| Final Validation Accuracy | 89.62 |
+| Final Train Accuracy | 89.52814327465913 |
+| Final Validation Accuracy | 89.52 |
 | Test Accuracy | 88.3 |
 | Test Loss | 0.8009320064544678 |
-| Training Time Seconds | 2665.025101661682 |
+| Training Time Seconds | 2928.3342661857605 |
 | Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42\best_checkpoint.pth |
 
 ## Optional Evaluation Results

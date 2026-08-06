@@ -136,6 +136,23 @@ def seed_all(seed):
     torch.backends.cudnn.benchmark = True
 
 
+def save_run_command(output_dir):
+    def powershell_quote(value):
+        return "'" + str(value).replace("'", "''") + "'"
+
+    arguments = [
+        str(Path(sys.argv[0]).resolve()),
+        *sys.argv[1:],
+    ]
+    lines = [f"& {powershell_quote(sys.executable)} `"]
+    for index, argument in enumerate(arguments):
+        suffix = " `" if index < len(arguments) - 1 else ""
+        lines.append(f"  {powershell_quote(argument)}{suffix}")
+    (output_dir / "run_command.ps1").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
 class ModelEMA:
     """Exponential moving average used for validation and final evaluation."""
 
@@ -632,6 +649,7 @@ def main():
     seed_all(args.seed)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    save_run_command(output_dir)
     device = torch.device(
         args.device
         if args.device.startswith("cuda") and torch.cuda.is_available()
