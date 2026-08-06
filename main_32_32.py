@@ -370,6 +370,9 @@ def get_args_parser():
     parser.add_argument('--train_interpolation', type=str, default='bicubic',
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
 
+    parser.add_argument("--ttfs_force_pos_weights", default=False, type=str2bool)
+    parser.add_argument("--ttfs_init_delay", default=0.0, type=float)
+    parser.add_argument("--ttfs_stage_delays", default="0.4,0.0,0.0,0.0", type=str)
     # Evaluation parameters
     parser.add_argument('--crop_pct', type=float, default=None)
 
@@ -551,7 +554,9 @@ def main(args):
 
     
     
-
+    stage_delays = [float(item.strip()) for item in args.ttfs_stage_delays.split(",")]
+    if len(stage_delays) != 4:
+        raise ValueError("--ttfs_stage_delays must contain exactly four values")
     model = ConvNeXtSpiking(
         in_chans=3,
         num_classes=args.nb_classes,
