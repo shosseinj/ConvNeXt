@@ -549,67 +549,24 @@ def main(args):
             prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
             label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
-    if getattr(args, 'spiking', False):
-        # instantiate spiking variant (shares weights with ConvNeXt)
+    
+    
 
-        model = ConvNeXtSpiking(in_chans=3, num_classes=args.nb_classes,
-                                drop_path_rate=args.drop_path,
-                                layer_scale_init_value=args.layer_scale_init_value,
-                                head_init_scale=args.head_init_scale,
-                                t_min=args.ttfs_tmin, t_max=args.ttfs_tmax)
-        # If a checkpoint is provided via --finetune, load it into the spiking model now.
-        # This mirrors the finetune handling below but does it early for the spiking branch.
-        if args.load_weights :
-            load_path = args.load_weights
-            print("Requested to load weights from: %s" % load_path)
-            # normalize and strip trailing separators
-            load_path = os.path.normpath(load_path)
-            # if a directory was provided, try to find the most recent .pth/.pt file inside
-            if os.path.isdir(load_path):
-                cand = [os.path.join(load_path, f) for f in os.listdir(load_path)
-                        if f.lower().endswith(('.pth', '.pt'))]
-                if len(cand) == 0:
-                    raise FileNotFoundError(f"No checkpoint files (.pth/.pt) found in directory: {load_path}")
-                # choose the most recently modified checkpoint
-                load_path = sorted(cand, key=os.path.getmtime)[-1]
-                print(f"Found checkpoint in directory, using: {load_path}")
+    model = ConvNeXtSpiking(
+        in_chans=3,
+        num_classes=args.nb_classes,
+        drop_path_rate=args.drop_path,
+        layer_scale_init_value=args.layer_scale_init_value,
+        head_init_scale=args.head_init_scale,
+        t_min=args.ttfs_tmin,
+        t_max=args.ttfs_tmax,
+        force_positive_weights=args.ttfs_force_pos_weights,
+        init_delay=args.ttfs_init_delay,
+        stage_delays=stage_delays,
+    )
+    checkpoint_path = resolve_checkpoint(args.load_weights)
+    integrity = load_checkpoint_with_integrity(model, checkpoint_path, args.model_key)
 
-            if not os.path.isfile(load_path):
-                raise FileNotFoundError(f"Checkpoint file not found: {load_path}")
-
-            checkpoint = torch.load(load_path, map_location='cpu')
-
-            # If the checkpoint is a dict with nested model keys (e.g. {'model': ..., 'optimizer': ...}),
-            # extract the actual state_dict using args.model_key (same logic as finetune handling).
-            checkpoint_model = None
-            for model_key in args.model_key.split('|'):
-                if model_key in checkpoint:
-                    checkpoint_model = checkpoint[model_key]
-                    print(f"Load state_dict from checkpoint key = {model_key}")
-                    break
-            if checkpoint_model is None:
-                checkpoint_model = checkpoint
-
-            # If the classifier head shape does not match (e.g., ImageNet -> CIFAR), remove it so load succeeds.
-            # state_dict = model.state_dict()
-            # for k in ['head.weight', 'head.bias']:
-            #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict.get(k, None).shape:
-            #         print(f"Removing key {k} from pretrained checkpoint (shape mismatch: {checkpoint_model[k].shape} vs {state_dict.get(k, None)})")
-            #         del checkpoint_model[k]
-
-            utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
-            # clear load_weights so downstream code does not attempt to reload
-            # args.load_weights = ''
-
-    else:
-        model = create_model(
-            args.model, 
-            pretrained=False, 
-            num_classes=args.nb_classes, 
-            drop_path_rate=args.drop_path,
-            layer_scale_init_value=args.layer_scale_init_value,
-            head_init_scale=args.head_init_scale,
-        )
 
     # The model must be on the target device before model summaries,
     # checkpoint-backed evaluation, or any CUDA input reaches its layers.
@@ -621,9 +578,7 @@ def main(args):
         summary(model, input_size=(1, 3, 32, 32), device="cpu" if not torch.cuda.is_available() else "cuda")
         # return 0
 
-    checkpoint_path = resolve_checkpoint(args.load_weights)
-    integrity = load_checkpoint_with_integrity(model, checkpoint_path, args.model_key)
-
+=
     if args.eval:
         print(f"Eval only mode")
 
