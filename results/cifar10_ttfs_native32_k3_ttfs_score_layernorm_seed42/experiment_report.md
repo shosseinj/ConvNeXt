@@ -10,7 +10,7 @@
 | Notes | unknown |
 | Seed | 42 |
 | Status | running |
-| Updated At | 2026-08-06T20:40:31+03:30 |
+| Updated At | 2026-08-06T20:42:02+03:30 |
 
 ## Dataset
 
@@ -76,11 +76,11 @@
 |---|---|
 | Best Epoch | 115 |
 | Best Validation Accuracy | 89.8 |
-| Final Train Accuracy | 89.52814327465913 |
-| Final Validation Accuracy | 89.52 |
+| Final Train Accuracy | 89.71190958479049 |
+| Final Validation Accuracy | 89.58 |
 | Test Accuracy | 88.3 |
 | Test Loss | 0.8009320064544678 |
-| Training Time Seconds | 2928.3342661857605 |
+| Training Time Seconds | 3019.7226054668427 |
 | Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
