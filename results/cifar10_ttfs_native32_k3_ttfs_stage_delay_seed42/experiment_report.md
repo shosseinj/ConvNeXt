@@ -9,8 +9,8 @@
 | Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42 |
 | Notes | unknown |
 | Seed | 42 |
-| Status | running |
-| Updated At | 2026-08-06T15:22:36+03:30 |
+| Status | early_stopped |
+| Updated At | 2026-08-06T16:25:35+03:30 |
 
 ## Dataset
 
@@ -67,13 +67,13 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 65 |
-| Best Validation Accuracy | 84.9 |
-| Final Train Accuracy | 84.08200260430846 |
-| Final Validation Accuracy | 84.62 |
-| Test Accuracy | unknown |
-| Test Loss | unknown |
-| Training Time Seconds | 1297.7125103473663 |
+| Best Epoch | 261 |
+| Best Validation Accuracy | 89.3 |
+| Final Train Accuracy | 90.46398211765538 |
+| Final Validation Accuracy | 89.12 |
+| Test Accuracy | 88.03 |
+| Test Loss | 0.8006275066375732 |
+| Training Time Seconds | 5076.98136138916 |
 | Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\best_checkpoint.pth |
 
 ## Optional Evaluation Results

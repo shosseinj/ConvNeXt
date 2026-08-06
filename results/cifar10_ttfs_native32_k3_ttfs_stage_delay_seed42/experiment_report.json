@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
     "notes": null,
     "seed": 42,
-    "status": "running",
-    "updated_at": "2026-08-06T15:22:36+03:30"
+    "status": "early_stopped",
+    "updated_at": "2026-08-06T16:25:35+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -69,13 +69,13 @@
     "early_stopping_patience": 30
   },
   "results": {
-    "best_epoch": 65,
-    "best_validation_accuracy": 84.9,
-    "final_train_accuracy": 84.08200260430846,
-    "final_validation_accuracy": 84.62,
-    "test_accuracy": null,
-    "test_loss": null,
-    "training_time_seconds": 1297.7125103473663,
+    "best_epoch": 261,
+    "best_validation_accuracy": 89.3,
+    "final_train_accuracy": 90.46398211765538,
+    "final_validation_accuracy": 89.12,
+    "test_accuracy": 88.03,
+    "test_loss": 0.8006275066375732,
+    "training_time_seconds": 5076.98136138916,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\\best_checkpoint.pth"
   },
   "optional_evaluation": {
