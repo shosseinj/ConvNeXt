@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import os
@@ -78,6 +79,8 @@ def args_parser():
     parser.add_argument("--lr_scheduler_patience", type=int, default=6)
     parser.add_argument("--lr_scheduler_factor", type=float, default=0.5)
     parser.add_argument("--early_stopping_min_delta", type=float, default=0.05)
+    parser.add_argument("--ema", type=str2bool, default=True)
+    parser.add_argument("--ema_decay", type=float, default=0.9998)
     parser.add_argument("--weight_decay", type=float, default=0.05)
     parser.add_argument("--label_smoothing", type=float, default=0.1)
     parser.add_argument("--head_dropout", type=float, default=0.1)
@@ -115,6 +118,8 @@ def args_parser():
         parser.error("--lr_scheduler_factor must be in (0,1)")
     if args.early_stopping_min_delta < 0.0:
         parser.error("--early_stopping_min_delta must be non-negative")
+    if not 0.0 <= args.ema_decay < 1.0:
+        parser.error("--ema_decay must be in [0,1)")
     return args
 
 
@@ -124,6 +129,29 @@ def seed_all(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
+
+
+class ModelEMA:
+    """Exponential moving average used for validation and final evaluation."""
+
+    def __init__(self, model, decay):
+        self.decay = float(decay)
+        self.module = copy.deepcopy(model).eval()
+        self.module.requires_grad_(False)
+
+    @torch.no_grad()
+    def update(self, model):
+        source = model.state_dict()
+        for name, averaged in self.module.state_dict().items():
+            current = source[name].detach()
+            if averaged.is_floating_point():
+                averaged.mul_(self.decay).add_(current, alpha=1.0 - self.decay)
+            else:
+                averaged.copy_(current)
+
+    @torch.no_grad()
+    def set(self, model):
+        self.module.load_state_dict(model.state_dict(), strict=True)
 
 
 def build_loaders(args):
@@ -412,6 +440,8 @@ def create_experiment_report(
             "head_dropout": args.head_dropout,
             "mixup_alpha": args.mixup_alpha,
             "early_stopping_patience": args.early_stopping_patience,
+            "ema_enabled": args.ema,
+            "ema_decay": args.ema_decay if args.ema else None,
         },
         "results": {
             "best_epoch": previous_results.get("best_epoch"),
@@ -441,7 +471,9 @@ def create_experiment_report(
     }
 
 
-def run_epoch(model, loader, criterion, device, args, optimizer=None, scaler=None):
+def run_epoch(
+    model, loader, criterion, device, args, optimizer=None, scaler=None, ema=None
+):
     training = optimizer is not None
     model.train(training)
     total = 0
@@ -490,6 +522,8 @@ def run_epoch(model, loader, criterion, device, args, optimizer=None, scaler=Non
                 scaler.update()
             else:
                 optimizer.step()
+            if ema is not None:
+                ema.update(model)
 
         batch_size = labels.size(0)
         predictions = output.argmax(dim=1)
@@ -524,6 +558,7 @@ def save_checkpoint(
     optimizer,
     scheduler,
     scaler,
+    ema,
     epoch,
     best_validation_accuracy,
     best_epoch,
@@ -537,6 +572,8 @@ def save_checkpoint(
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             "scaler": scaler.state_dict(),
+            "ema": ema.module.state_dict() if ema is not None else None,
+            "ema_decay": ema.decay if ema is not None else None,
             "epoch": epoch,
             "best_val_accuracy": best_validation_accuracy,
             "best_epoch": best_epoch,
@@ -625,6 +662,7 @@ def main():
     scaler = torch.amp.GradScaler(
         "cuda", enabled=args.amp and device.type == "cuda"
     )
+    ema = ModelEMA(model, args.ema_decay) if args.ema else None
     start_epoch = 0
     best_validation_accuracy = -1.0
     best_epoch = -1
@@ -644,6 +682,12 @@ def main():
                 group["lr"] = args.lr
             scheduler.best = checkpoint.get("best_val_accuracy", -float("inf"))
         scaler.load_state_dict(checkpoint["scaler"])
+        if ema is not None:
+            if checkpoint.get("ema") is not None:
+                ema.module.load_state_dict(checkpoint["ema"], strict=True)
+            else:
+                ema.set(model)
+                print("Checkpoint has no EMA state; initialized EMA from model weights")
         start_epoch = checkpoint["epoch"] + 1
         best_validation_accuracy = checkpoint.get("best_val_accuracy", -1.0)
         best_epoch = checkpoint.get("best_epoch", checkpoint.get("epoch", -1))
@@ -719,11 +763,15 @@ def main():
         learning_rate = optimizer.param_groups[0]["lr"]
 
         train_metrics = run_epoch(
-            model, train_loader, criterion, device, args, optimizer, scaler
+            model, train_loader, criterion, device, args, optimizer, scaler, ema
         )
         with torch.inference_mode():
             validation_metrics = run_epoch(
-                model, validation_loader, criterion, device, args
+                ema.module if ema is not None else model,
+                validation_loader,
+                criterion,
+                device,
+                args,
             )
 
         improved = validation_metrics["accuracy"] > (
@@ -764,6 +812,7 @@ def main():
                 optimizer,
                 scheduler,
                 scaler,
+                ema,
                 epoch,
                 best_validation_accuracy,
                 best_epoch,
@@ -776,6 +825,7 @@ def main():
             optimizer,
             scheduler,
             scaler,
+            ema,
             epoch,
             best_validation_accuracy,
             best_epoch,
@@ -821,7 +871,10 @@ def main():
     best_checkpoint = torch.load(
         best_checkpoint_path, map_location=device, weights_only=False
     )
-    model.load_state_dict(best_checkpoint["model"], strict=True)
+    evaluation_state = best_checkpoint.get("ema")
+    if evaluation_state is None:
+        evaluation_state = best_checkpoint["model"]
+    model.load_state_dict(evaluation_state, strict=True)
     with torch.inference_mode():
         # run_epoch has no optimizer here, so the test path cannot apply Mixup.
         test_metrics = run_epoch(model, test_loader, criterion, device, args)

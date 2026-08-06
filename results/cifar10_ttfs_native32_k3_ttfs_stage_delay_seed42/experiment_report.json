@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
     "notes": null,
     "seed": 42,
-    "status": "early_stopped",
-    "updated_at": "2026-08-06T16:25:35+03:30"
+    "status": "running",
+    "updated_at": "2026-08-06T16:53:37+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -58,24 +58,30 @@
     "t_max": 1.0
   },
   "training": {
-    "epochs": 300,
+    "epochs": 350,
     "batch_size": 128,
     "optimizer": "AdamW",
     "learning_rate": 0.0003,
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 6,
+    "lr_scheduler_factor": 0.5,
+    "minimum_learning_rate": 1e-06,
     "weight_decay": 0.05,
     "label_smoothing": 0.1,
     "head_dropout": 0.1,
     "mixup_alpha": 0.2,
-    "early_stopping_patience": 30
+    "early_stopping_patience": 20,
+    "ema_enabled": true,
+    "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 261,
-    "best_validation_accuracy": 89.3,
-    "final_train_accuracy": 90.46398211765538,
-    "final_validation_accuracy": 89.12,
+    "best_epoch": 280,
+    "best_validation_accuracy": 89.36,
+    "final_train_accuracy": 89.09154461396449,
+    "final_validation_accuracy": 89.38,
     "test_accuracy": 88.03,
     "test_loss": 0.8006275066375732,
-    "training_time_seconds": 5076.98136138916,
+    "training_time_seconds": 5700.640079259872,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\\best_checkpoint.pth"
   },
   "optional_evaluation": {
