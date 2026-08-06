@@ -35,7 +35,154 @@ from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 
 from collections import defaultdict
+from models.convnext import ConvNeXtSpiking, SpikingBlock
 
+
+import models.convnext as convnext_module
+
+class OperationCollector:
+    """Collect actual dense MACs and TTFS event-driven operation statistics."""
+
+    def __init__(self, model, t_max, epsilon=1e-6):
+        self.model = model
+        self.t_max = float(t_max)
+        self.epsilon = float(epsilon)
+        self.handles = []
+        self.original_call_spiking = None
+        self.current_block = None
+        self.current_call_index = 0
+        self.activations = defaultdict(lambda: defaultdict(int))
+        self.operations = defaultdict(lambda: defaultdict(int))
+        self.block_names = {
+            module: name
+            for name, module in model.named_modules()
+            if isinstance(module, SpikingBlock)
+        }
+
+    def _activation(self, block_name, point, tensor):
+        stats = self.activations[(block_name, point)]
+        stats["num_total"] += tensor.numel()
+        stats["num_silent"] += (tensor >= self.t_max - self.epsilon).sum().item()
+
+    def _block_pre_hook(self, module, inputs):
+        self.current_block = module
+        self.current_call_index = 0
+
+    def _block_post_hook(self, module, inputs, output):
+        self._activation(self.block_names[module], "final", output.detach())
+        self.current_block = None
+        self.current_call_index = 0
+
+    def _wrapped_call_spiking(self, tj, weight, delays, t_min_prev, t_min, t_max):
+        output = self.original_call_spiking(tj, weight, delays, t_min_prev, t_min, t_max)
+        block = self.current_block
+        if block is None:
+            return output
+
+        point = "t_mid_spike" if self.current_call_index == 0 else "t_out_spike"
+        operation = "pw1" if self.current_call_index == 0 else "pw2"
+        self.current_call_index += 1
+        block_name = self.block_names[block]
+        self._activation(block_name, point, output.detach())
+
+        # tj is [events, input_features], weight is [input_features, outputs].
+        # Each non-silent input event incurs one accumulation for each nonzero
+        # outgoing connection. This avoids dense output-neuron/fan-out heuristics.
+        input_events_by_feature = (tj < self.t_max - self.epsilon).sum(dim=0).to(torch.int64)
+        nonzero_outgoing = (weight != 0).sum(dim=1).to(torch.int64)
+        synops = (input_events_by_feature * nonzero_outgoing).sum().item()
+        stats = self.operations[(block_name, operation)]
+        stats["theoretical_synops"] += int(synops)
+        stats["input_events"] += int(input_events_by_feature.sum().item())
+        stats["input_neurons"] += int(tj.numel())
+        stats["nonzero_weights"] = int((weight != 0).sum().item())
+        stats["weight_count"] = int(weight.numel())
+        return output
+
+    def _dense_hook(self, name):
+        def hook(module, inputs, output):
+            if not isinstance(output, torch.Tensor):
+                return
+            if isinstance(module, nn.Conv2d):
+                kernel_h, kernel_w = module.kernel_size
+                macs_per_output = (module.in_channels // module.groups) * kernel_h * kernel_w
+                macs = output.numel() * macs_per_output
+                operation_type = "depthwise_conv" if module.groups == module.in_channels else "dense_conv"
+            else:
+                macs = output.numel() * module.in_features
+                operation_type = "dense_linear"
+            stats = self.operations[(name, operation_type)]
+            stats["dense_macs"] += int(macs)
+            stats["output_elements"] += int(output.numel())
+            if isinstance(module, nn.Conv2d):
+                stats["groups"] = int(module.groups)
+                stats["kernel_h"] = int(module.kernel_size[0])
+                stats["kernel_w"] = int(module.kernel_size[1])
+        return hook
+
+    def install(self):
+        # Hooks are deliberately limited to the exact active SpikingBlock type.
+        for module in self.block_names:
+            self.handles.append(module.register_forward_pre_hook(self._block_pre_hook))
+            self.handles.append(module.register_forward_hook(self._block_post_hook))
+
+        dense_modules = {}
+        for index, sequential in enumerate(self.model.downsample_layers):
+            for child_name, child in sequential.named_modules():
+                if isinstance(child, nn.Conv2d):
+                    name = f"downsample_layers.{index}" + (f".{child_name}" if child_name else "")
+                    dense_modules[child] = name
+        for block, block_name in self.block_names.items():
+            dense_modules[block.dwconv] = f"{block_name}.dwconv"
+            # These hooks remain idle for the current active implementation,
+            # which accesses pw1/pw2 weights directly through TTFS. If a block
+            # actually invokes either Linear module, its cost is dense MACs.
+            dense_modules[block.pw1] = f"{block_name}.pw1"
+            dense_modules[block.pw2] = f"{block_name}.pw2"
+        dense_modules[self.model.head] = "head"
+        for module, name in dense_modules.items():
+            self.handles.append(module.register_forward_hook(self._dense_hook(name)))
+
+        self.original_call_spiking = convnext_module.call_spiking_torch
+        convnext_module.call_spiking_torch = self._wrapped_call_spiking
+        print(f"Registered activation hooks on {len(self.block_names)} actual SpikingBlock modules")
+
+    def remove(self):
+        for handle in self.handles:
+            handle.remove()
+        self.handles.clear()
+        if self.original_call_spiking is not None:
+            convnext_module.call_spiking_torch = self.original_call_spiking
+            self.original_call_spiking = None
+
+    def results(self, sample_count):
+        activation_rows = []
+        for (layer, point), stats in sorted(self.activations.items()):
+            total = stats["num_total"]
+            silent = stats["num_silent"]
+            activation_rows.append(
+                {
+                    "layer": layer,
+                    "measurement": point,
+                    "num_total": total,
+                    "num_silent": silent,
+                    "num_spiking": total - silent,
+                    "sparsity_percent": 100.0 * silent / total if total else 0.0,
+                }
+            )
+
+        operation_rows = []
+        for (layer, operation), stats in sorted(self.operations.items()):
+            row = {"layer": layer, "operation": operation}
+            row.update(stats)
+            dense_total = int(row.get("dense_macs", 0))
+            synops_total = int(row.get("theoretical_synops", 0))
+            row["dense_macs_per_sample"] = dense_total / sample_count
+            row["dense_macs_total_dataset"] = dense_total
+            row["theoretical_synops_per_sample"] = synops_total / sample_count
+            row["theoretical_synops_total_dataset"] = synops_total
+            operation_rows.append(row)
+        return activation_rows, operation_rows
 
 
 def evaluate(model, loader, device, t_max):
@@ -288,7 +435,7 @@ def get_args_parser():
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--eval', type=str2bool, default=False,
+    parser.add_argument('--eval', type=str2bool, default=True,
                         help='Perform evaluation only')
     parser.add_argument('--model_summary', type=str2bool, default=False,
                         help='Perform evaluation only')
@@ -404,7 +551,7 @@ def main(args):
 
     if getattr(args, 'spiking', False):
         # instantiate spiking variant (shares weights with ConvNeXt)
-        from models.convnext import ConvNeXtSpiking
+
         model = ConvNeXtSpiking(in_chans=3, num_classes=args.nb_classes,
                                 drop_path_rate=args.drop_path,
                                 layer_scale_init_value=args.layer_scale_init_value,
@@ -463,6 +610,11 @@ def main(args):
             layer_scale_init_value=args.layer_scale_init_value,
             head_init_scale=args.head_init_scale,
         )
+
+    # The model must be on the target device before model summaries,
+    # checkpoint-backed evaluation, or any CUDA input reaches its layers.
+    model = model.to(device)
+
     if args.model_summary:
 
         from torchinfo import summary
@@ -476,7 +628,7 @@ def main(args):
         print(f"Eval only mode")
 
         accuracy, sample_count, activations, operations = evaluate(
-        model, loader, device, args.ttfs_tmax
+        model, data_loader_val, device, args.ttfs_tmax
     )
         print(f"Accuracy: {accuracy:.2f}% ({sample_count} samples)")
 
@@ -508,8 +660,6 @@ def main(args):
         #         del checkpoint_model[k]
         # utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
         print('Starting FineTuning')
-    model.to(device)
-
     model_ema = None
     if args.model_ema:
         # Important to create EMA model after cuda(), DP wrapper, and AMP but before SyncBN and DDP wrapper
