@@ -1,0 +1,72 @@
+{
+  "data_path": "..\\cifar_data",
+  "output_dir": ".\\results\\cifar10_ttfs_native32_proposed_seed42",
+  "resume": "",
+  "experiment_name": "Native32 TTFS Proposed Architecture",
+  "experiment_notes": "15-block native CIFAR architecture with 3x3 depthwise convolution",
+  "dataset": "CIFAR-10",
+  "residual_operator": "min",
+  "pw1_mode": "continuous TTFS",
+  "pw2_mode": "continuous TTFS",
+  "download": false,
+  "epochs": 300,
+  "batch_size": 328,
+  "num_workers": 4,
+  "seed": 42,
+  "lr": 0.0003,
+  "min_lr": 1e-06,
+  "warmup_epochs": 10,
+  "weight_decay": 0.05,
+  "label_smoothing": 0.1,
+  "head_dropout": 0.1,
+  "spike_dropout": 0.05,
+  "mixup_alpha": 0.2,
+  "early_stopping_patience": 30,
+  "dims": [
+    96,
+    192,
+    384,
+    512
+  ],
+  "depths": [
+    3,
+    3,
+    6,
+    3
+  ],
+  "dw_kernel_size": 3,
+  "grad_clip": 5.0,
+  "drop_path": 0.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "force_positive_weights": false,
+  "init_delay": 0.0,
+  "stage_delays": "0.4,0.0,0.0,0.0",
+  "amp": true,
+  "device": "cuda",
+  "val_size": 5000,
+  "print_freq": 50,
+  "input_resolution": [
+    32,
+    32
+  ],
+  "stem": {
+    "in_channels": 3,
+    "kernel_size": 3,
+    "stride": 1,
+    "padding": 1,
+    "out_channels": 96
+  },
+  "spatial_schedule": [
+    32,
+    32,
+    16,
+    8,
+    4
+  ],
+  "depthwise_kernel_size": 3,
+  "parameter_count": 15738026,
+  "temporal_formulation": "continuous analytic TTFS",
+  "simulation_steps": null,
+  "mixup_order": "raw images in [0,1], then TTFS encode"
+}

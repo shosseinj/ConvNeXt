@@ -114,6 +114,10 @@ class OperationCollector:
             stats = self.operations[(name, operation_type)]
             stats["dense_macs"] += int(macs)
             stats["output_elements"] += int(output.numel())
+            if name.endswith(".pw2"):
+                block_name = name[:-4]
+                t_out = torch.clamp(-output.detach(), 0.0, self.t_max)
+                self._activation(block_name, "t_out_spike", t_out)
             if isinstance(module, nn.Conv2d):
                 stats["groups"] = int(module.groups)
                 stats["kernel_h"] = int(module.kernel_size[0])
@@ -583,7 +587,7 @@ def main(args):
         summary(model, input_size=(1, 3, 32, 32), device="cpu" if not torch.cuda.is_available() else "cuda")
         # return 0
 
-=
+
     if args.eval:
         print(f"Eval only mode")
 

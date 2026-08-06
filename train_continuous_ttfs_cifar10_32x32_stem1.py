@@ -58,7 +58,7 @@ def args_parser():
     parser.add_argument("--data_path", default="../cifar_data")
     parser.add_argument(
         "--output_dir",
-        default="results/cifar10_continuous_ttfs_32x32_stem1_seed42",
+        default="results/cifar10_ttfs_native32_proposed_seed42",
     )
     parser.add_argument("--resume", default="")
     parser.add_argument("--experiment_name", default="")
@@ -66,23 +66,24 @@ def args_parser():
     parser.add_argument("--dataset", default="CIFAR-10")
     parser.add_argument("--residual_operator", default="min")
     parser.add_argument("--pw1_mode", default="continuous TTFS")
-    parser.add_argument("--pw2_mode", default="continuous TTFS")
+    parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="dense")
     parser.add_argument("--download", type=str2bool, default=False)
-    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--lr", type=float, default=2e-4)
+    parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--min_lr", type=float, default=1e-6)
     parser.add_argument("--warmup_epochs", type=int, default=10)
-    parser.add_argument("--weight_decay", type=float, default=0.1)
+    parser.add_argument("--weight_decay", type=float, default=0.05)
     parser.add_argument("--label_smoothing", type=float, default=0.1)
-    parser.add_argument("--head_dropout", type=float, default=0.2)
-    parser.add_argument("--spike_dropout", type=float, default=0.1)
+    parser.add_argument("--head_dropout", type=float, default=0.1)
+    parser.add_argument("--spike_dropout", type=float, default=0.05)
     parser.add_argument("--mixup_alpha", type=float, default=0.2)
     parser.add_argument("--early_stopping_patience", type=int, default=30)
-    parser.add_argument("--dims", type=four_int_tuple, default="64,128,256,512")
-    parser.add_argument("--depths", type=four_int_tuple, default="2,2,6,2")
+    parser.add_argument("--dims", type=four_int_tuple, default="96,192,384,512")
+    parser.add_argument("--depths", type=four_int_tuple, default="3,3,6,3")
+    parser.add_argument("--dw_kernel_size", type=int, default=3)
     parser.add_argument("--grad_clip", type=float, default=5.0)
     parser.add_argument("--drop_path", type=float, default=0.0)
     parser.add_argument("--t_min", type=float, default=0.0)
@@ -105,6 +106,8 @@ def args_parser():
         parser.error("--spike_dropout must be in [0,1]")
     if args.early_stopping_patience < 1:
         parser.error("--early_stopping_patience must be at least 1")
+    if args.dw_kernel_size <= 0 or args.dw_kernel_size % 2 == 0:
+        parser.error("--dw_kernel_size must be a positive odd integer")
     return args
 
 
@@ -174,11 +177,13 @@ def make_model(args):
         num_classes=10,
         depths=args.depths,
         dims=args.dims,
+        dw_kernel_size=args.dw_kernel_size,
         drop_path_rate=args.drop_path,
         t_min=args.t_min,
         t_max=args.t_max,
         head_dropout=args.head_dropout,
         spike_dropout=args.spike_dropout,
+        pw2_mode=args.pw2_mode,
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -231,6 +236,8 @@ def architecture_metadata(args):
         "dims": list(args.dims),
         "depths": list(args.depths),
         "input_resolution": [32, 32],
+        "depthwise_kernel_size": args.dw_kernel_size,
+        "pw2_mode": args.pw2_mode,
         "stem": {
             "in_channels": 3,
             "out_channels": args.dims[0],
@@ -312,6 +319,7 @@ def create_experiment_report(
             "stem_kernel": 3,
             "stem_stride": 1,
             "stem_padding": 1,
+            "depthwise_kernel_size": args.dw_kernel_size,
             "residual_operator": args.residual_operator,
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
@@ -554,6 +562,7 @@ def main():
             "out_channels": args.dims[0],
         },
         "spatial_schedule": [32, 32, 16, 8, 4],
+        "depthwise_kernel_size": args.dw_kernel_size,
         "parameter_count": parameter_count,
         "temporal_formulation": "continuous analytic TTFS",
         "simulation_steps": None,

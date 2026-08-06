@@ -962,9 +962,15 @@ class Block(nn.Module):
         drop_path (float): Stochastic depth rate. Default: 0.0
         layer_scale_init_value (float): Init value for Layer Scale. Default: 1e-6.
     """
-    def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
+    def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6,
+                 dw_kernel_size=7):
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim) # depthwise conv
+        if dw_kernel_size <= 0 or dw_kernel_size % 2 == 0:
+            raise ValueError("dw_kernel_size must be a positive odd integer")
+        self.dwconv = nn.Conv2d(
+            dim, dim, kernel_size=dw_kernel_size,
+            padding=dw_kernel_size // 2, groups=dim
+        )
         # self.norm = LayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(dim, 4 * dim) # pointwise/1x1 convs, implemented with linear layers
         self.act = nn.GELU()
@@ -1012,7 +1018,8 @@ class ConvNeXt(nn.Module):
     #              ):
     def __init__(self, in_chans=3, num_classes=1000, depths=(3, 3, 9, 3),
                  dims=(96, 192, 384, 768), drop_path_rate=0.,
-                 head_init_scale=1., layer_scale_init_value=1e-6, **kwargs):
+                 head_init_scale=1., layer_scale_init_value=1e-6,
+                 dw_kernel_size=7, **kwargs):
         # ----- timm ≥ 0.9 compatibility -----
         # ----- timm ≥ 0.9 passes this key; ignore it -----
         kwargs.pop('pretrained_cfg', None)
@@ -1036,8 +1043,9 @@ class ConvNeXt(nn.Module):
         cur = 0
         for i in range(4):
             stage = nn.Sequential(
-                *[Block(dim=dims[i], drop_path=dp_rates[cur + j], 
-                layer_scale_init_value=layer_scale_init_value) for j in range(depths[i])]
+                *[Block(dim=dims[i], drop_path=dp_rates[cur + j],
+                layer_scale_init_value=layer_scale_init_value,
+                dw_kernel_size=dw_kernel_size) for j in range(depths[i])]
             )
             self.stages.append(stage)
             cur += depths[i]
@@ -1075,7 +1083,7 @@ class SpikingBlock(nn.Module):
     """
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
-                 spike_dropout: float = 0.0):
+                 spike_dropout: float = 0.0, pw2_mode: str = "ttfs"):
         super().__init__()
         # reuse modules (share weights)
         self.dwconv = orig_block.dwconv
@@ -1089,15 +1097,22 @@ class SpikingBlock(nn.Module):
         self.spike_dropout = float(spike_dropout)
         if not 0.0 <= self.spike_dropout <= 1.0:
             raise ValueError("spike_dropout must be in [0,1]")
+        self.pw2_mode = str(pw2_mode).strip().lower()
+        if self.pw2_mode not in {"ttfs", "dense"}:
+            raise ValueError("pw2_mode must be 'ttfs' or 'dense'")
 
         self.D_mid = nn.Parameter(torch.zeros(self.pw1.out_features))
-        self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
+        if self.pw2_mode == "ttfs":
+            self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
+        else:
+            self.register_parameter("D_out", None)
         # Optionally initialize delays to a small positive value (helps push spikes later early)
         self._init_delay = float(init_delay)
         if self._init_delay > 0.0:
             with torch.no_grad():
                 self.D_mid.data.fill_(self._init_delay)
-                self.D_out.data.fill_(self._init_delay)
+                if self.D_out is not None:
+                    self.D_out.data.fill_(self._init_delay)
 
 
     def _apply_spike_dropout(self, t_out):
@@ -1136,10 +1151,30 @@ class SpikingBlock(nn.Module):
         t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
         t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
 
-        # pw2
-        W2 = (torch.relu(self.pw2.weight) if self.force_positive_weights else self.pw2.weight).t().contiguous()  # (C_mid, C_out)
-        D_out = torch.clamp(torch.relu(self.D_out), max=0.9 * (self.t_max - self.t_min)).to(device=device, dtype=dtype)
-        t_out = call_spiking_torch(t_mid, W2, D_out, None, t_min, t_max)
+        # pw2 is either the legacy TTFS transform or a dense score projection.
+        # Dense mode matches ConvNeXt's linear second pointwise projection: it
+        # introduces no second TTFS threshold and includes the learned bias.
+        if self.pw2_mode == "ttfs":
+            W2 = (
+                torch.relu(self.pw2.weight)
+                if self.force_positive_weights else self.pw2.weight
+            ).t().contiguous()
+            D_out = torch.clamp(
+                torch.relu(self.D_out),
+                max=0.9 * (self.t_max - self.t_min),
+            ).to(device=device, dtype=dtype)
+            t_out = call_spiking_torch(
+                t_mid, W2, D_out, None, t_min, t_max
+            )
+        else:
+            scores_mid = -t_mid
+            if self.force_positive_weights:
+                scores_out = F.linear(
+                    scores_mid, torch.relu(self.pw2.weight), self.pw2.bias
+                )
+            else:
+                scores_out = self.pw2(scores_mid)
+            t_out = torch.clamp(-scores_out, self.t_min, self.t_max)
 
         # reshape back
         t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()
@@ -1160,7 +1195,7 @@ class SpikingBlock(nn.Module):
 
 class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
-                 spike_dropout=0.0, **kwargs):
+                 spike_dropout=0.0, pw2_mode="ttfs", **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         # accept init_delay forwarded from model constructor
@@ -1172,7 +1207,8 @@ class ConvNeXtSpiking(ConvNeXt):
                 spb = SpikingBlock(
                     b, t_min=t_min, t_max=t_max,
                     force_positive_weights=self.force_positive_weights,
-                    init_delay=self.init_delay, spike_dropout=spike_dropout
+                    init_delay=self.init_delay, spike_dropout=spike_dropout,
+                    pw2_mode=pw2_mode
                 )
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)

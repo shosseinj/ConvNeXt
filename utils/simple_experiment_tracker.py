@@ -30,6 +30,7 @@ REGISTRY_FIELDS = [
     "stem_kernel",
     "stem_stride",
     "stem_padding",
+    "depthwise_kernel_size",
     "residual_operator",
     "pw1_mode",
     "pw2_mode",
