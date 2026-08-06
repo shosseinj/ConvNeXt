@@ -1,9 +1,9 @@
 {
   "data_path": "..\\cifar_data",
-  "output_dir": ".\\results\\cifar10_ttfs_small_64_128_256_512_seed42",
-  "resume": ".\\results\\cifar10_ttfs_small_64_128_256_512_seed42\\last_checkpoint.pth",
-  "experiment_name": "",
-  "experiment_notes": "",
+  "output_dir": ".\\results\\cifar10_ttfs_small_spike_dropout01_seed42",
+  "resume": "",
+  "experiment_name": "Small TTFS Spike Dropout 0.1",
+  "experiment_notes": "TTFS-aware t_out dropout using t_max as the no-spike value",
   "dataset": "CIFAR-10",
   "residual_operator": "min",
   "pw1_mode": "continuous TTFS",
@@ -19,6 +19,7 @@
   "weight_decay": 0.1,
   "label_smoothing": 0.1,
   "head_dropout": 0.2,
+  "spike_dropout": 0.1,
   "mixup_alpha": 0.2,
   "early_stopping_patience": 30,
   "dims": [

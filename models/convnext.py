@@ -1073,7 +1073,9 @@ class SpikingBlock(nn.Module):
     Spiking variant of ConvNeXt Block using TTFS analytic mapping.
     Reuses weights from an existing Block instance.
     """
-    def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0, force_positive_weights: bool = False, init_delay: float = 0.0):
+    def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
+                 force_positive_weights: bool = False, init_delay: float = 0.0,
+                 spike_dropout: float = 0.0):
         super().__init__()
         # reuse modules (share weights)
         self.dwconv = orig_block.dwconv
@@ -1084,6 +1086,9 @@ class SpikingBlock(nn.Module):
         self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
         self.t_min = float(t_min)
         self.t_max = float(t_max)
+        self.spike_dropout = float(spike_dropout)
+        if not 0.0 <= self.spike_dropout <= 1.0:
+            raise ValueError("spike_dropout must be in [0,1]")
 
         self.D_mid = nn.Parameter(torch.zeros(self.pw1.out_features))
         self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
@@ -1094,6 +1099,19 @@ class SpikingBlock(nn.Module):
                 self.D_mid.data.fill_(self._init_delay)
                 self.D_out.data.fill_(self._init_delay)
 
+
+    def _apply_spike_dropout(self, t_out):
+        """Drop TTFS events by replacing their times with the no-spike time."""
+        if not self.training or self.spike_dropout == 0.0:
+            return t_out
+        keep_mask = torch.rand_like(t_out) >= self.spike_dropout
+        return torch.where(
+            keep_mask,
+            t_out,
+            torch.as_tensor(
+                self.t_max, device=t_out.device, dtype=t_out.dtype
+            ),
+        )
 
     def forward(self, tj):
         # tj: spike times tensor (N, C, H, W)
@@ -1126,8 +1144,9 @@ class SpikingBlock(nn.Module):
         # reshape back
         t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()
 
-        # out = tj + self.drop_path(t_out)
-        out = torch.minimum(tj, self.drop_path(t_out))
+        # TTFS-aware dropout applies only to t_out and never rescales kept times.
+        t_out = self._apply_spike_dropout(t_out)
+        out = torch.minimum(tj, t_out)
 
         # store latest output spike times for regularization/monitoring
         # Use the final output `out` (this is what hooks and forward actually return)
@@ -1140,7 +1159,8 @@ class SpikingBlock(nn.Module):
 
 
 class ConvNeXtSpiking(ConvNeXt):
-    def __init__(self, *args, t_min=0.0, t_max=1.0, **kwargs):
+    def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
+                 spike_dropout=0.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         # accept init_delay forwarded from model constructor
@@ -1149,7 +1169,11 @@ class ConvNeXtSpiking(ConvNeXt):
         for si, stage in enumerate(self.stages):
             new_blocks = []
             for b in stage:
-                spb = SpikingBlock(b, t_min=t_min, t_max=t_max, force_positive_weights=self.force_positive_weights, init_delay=self.init_delay)
+                spb = SpikingBlock(
+                    b, t_min=t_min, t_max=t_max,
+                    force_positive_weights=self.force_positive_weights,
+                    init_delay=self.init_delay, spike_dropout=spike_dropout
+                )
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)
         # head: we need to map spike times to logits; we'll treat head as linear on features,
@@ -1157,6 +1181,8 @@ class ConvNeXtSpiking(ConvNeXt):
         # Keep self.head as-is but forward will convert spike-times to scores before head.
         self.t_min = float(t_min)
         self.t_max = float(t_max)
+        # Dropout is applied only to dense scores, never to TTFS spike times.
+        self.head_dropout = nn.Dropout(p=float(head_dropout))
 
     def forward_features(self, x_t):
         # x_t: spike times tensor (N, C_in, H, W)
@@ -1172,7 +1198,9 @@ class ConvNeXtSpiking(ConvNeXt):
         # x_t: spike times in [t_min, t_max]
         x_pool = self.forward_features(x_t)  # spike times per channel
         # convert times to scores: earlier spike -> higher score; simple mapping s = -t
-        logits = self.head(-x_pool)
+        scores = -x_pool
+        scores = self.head_dropout(scores)
+        logits = self.head(scores)
         return logits
     
 

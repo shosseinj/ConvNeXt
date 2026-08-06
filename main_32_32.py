@@ -171,9 +171,9 @@ def get_args_parser():
     parser.add_argument('--model_prefix', default='', type=str)
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/cifar_data', type=str,
+    parser.add_argument('--data_path', default='../cifar_data', type=str,
                         help='dataset path')
-    parser.add_argument('--load_weights', default='./checkpoint-best-SNN.pth/', type=str,
+    parser.add_argument('--load_weights', default='./weights/ckpt_residual_Di_96.09/checkpoint_residual_Di_96.09.pth', type=str,
                         help='dataset path')
     parser.add_argument('--eval_data_path', default=None, type=str,
                         help='dataset path for evaluation')

@@ -9,3 +9,28 @@ python .\train_continuous_ttfs_cifar10_32x32_stem1.py `  --data_path "..\cifar_d
 --amp true `  --num_workers 4`
 --seed 42 `
 --download false
+
+## resume training
+
+```
+& "C:\Users\jafari.h\Desktop\ai_project\.venv\Scripts\python.exe" `
+  ".\train_continuous_ttfs_cifar10_32x32_stem1.py" `
+  --data_path "..\cifar_data" `
+  --output_dir ".\results\cifar10_ttfs_small_64_128_256_512_seed42" `
+  --resume ".\results\cifar10_ttfs_small_64_128_256_512_seed42\last_checkpoint.pth" `
+  --dims "64,128,256,512" `
+  --depths "2,2,6,2" `
+  --head_dropout 0.2 `
+  --drop_path 0.0 `
+  --t_min 0 `
+  --t_max 1 `
+  --stage_delays "0.4,0.0,0.0,0.0" `
+  --epochs 200 `
+  --lr 2e-4 `
+  --min_lr 1e-6 `
+  --warmup_epochs 10 `
+  --weight_decay 0.1 `
+  --mixup_alpha 0.2 `
+  --early_stopping_patience 30 `
+  --download false
+```

@@ -6,6 +6,7 @@ import json
 import math
 import os
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -16,6 +17,13 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
 from models.convnext import ConvNeXtSpiking
+
+# The repository already has a root-level utils.py. Importing the requested
+# tracker directory explicitly avoids shadowing that existing module.
+TRACKER_UTILS_DIRECTORY = Path(__file__).resolve().parent / "utils"
+if str(TRACKER_UTILS_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(TRACKER_UTILS_DIRECTORY))
+from simple_experiment_tracker import SimpleExperimentTracker, local_timestamp
 
 
 def str2bool(value):
@@ -53,6 +61,12 @@ def args_parser():
         default="results/cifar10_continuous_ttfs_32x32_stem1_seed42",
     )
     parser.add_argument("--resume", default="")
+    parser.add_argument("--experiment_name", default="")
+    parser.add_argument("--experiment_notes", default="")
+    parser.add_argument("--dataset", default="CIFAR-10")
+    parser.add_argument("--residual_operator", default="min")
+    parser.add_argument("--pw1_mode", default="continuous TTFS")
+    parser.add_argument("--pw2_mode", default="continuous TTFS")
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=128)
@@ -63,6 +77,8 @@ def args_parser():
     parser.add_argument("--warmup_epochs", type=int, default=10)
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--label_smoothing", type=float, default=0.1)
+    parser.add_argument("--head_dropout", type=float, default=0.2)
+    parser.add_argument("--spike_dropout", type=float, default=0.1)
     parser.add_argument("--mixup_alpha", type=float, default=0.2)
     parser.add_argument("--early_stopping_patience", type=int, default=30)
     parser.add_argument("--dims", type=four_int_tuple, default="64,128,256,512")
@@ -83,6 +99,10 @@ def args_parser():
         parser.error("--drop_path must remain 0.0 for TTFS spike-time semantics")
     if args.mixup_alpha < 0.0:
         parser.error("--mixup_alpha must be non-negative")
+    if not 0.0 <= args.head_dropout < 1.0:
+        parser.error("--head_dropout must be in [0,1)")
+    if not 0.0 <= args.spike_dropout <= 1.0:
+        parser.error("--spike_dropout must be in [0,1]")
     if args.early_stopping_patience < 1:
         parser.error("--early_stopping_patience must be at least 1")
     return args
@@ -157,6 +177,8 @@ def make_model(args):
         drop_path_rate=args.drop_path,
         t_min=args.t_min,
         t_max=args.t_max,
+        head_dropout=args.head_dropout,
+        spike_dropout=args.spike_dropout,
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -228,6 +250,114 @@ def validate_resume_architecture(checkpoint, args):
             f"Checkpoint={checkpoint_architecture}, requested={requested_architecture}. "
             "Do not resume the previous large-model checkpoint."
         )
+
+
+def create_experiment_report(
+    args,
+    output_dir,
+    train_sample_count,
+    validation_sample_count,
+    test_sample_count,
+    parameter_count,
+    previous_report=None,
+):
+    previous_report = previous_report or {}
+    previous_experiment = previous_report.get("experiment", {})
+    previous_results = previous_report.get("results", {})
+    previous_optional = previous_report.get("optional_evaluation", {})
+    stage_delays = [float(value) for value in args.stage_delays.split(",")]
+    delay_enabled = args.init_delay != 0.0 or any(
+        value != 0.0 for value in stage_delays
+    )
+    experiment_name = (
+        args.experiment_name.strip()
+        or previous_experiment.get("experiment_name")
+        or output_dir.name
+    )
+    experiment_notes = (
+        args.experiment_notes.strip()
+        or previous_experiment.get("notes")
+        or None
+    )
+    return {
+        "experiment": {
+            "experiment_name": experiment_name,
+            "date_time": previous_experiment.get("date_time") or local_timestamp(),
+            "output_directory": str(output_dir.resolve()),
+            "notes": experiment_notes,
+            "seed": args.seed,
+            "status": "resumed" if args.resume else "running",
+            "updated_at": local_timestamp(),
+        },
+        "dataset": {
+            "dataset_name": args.dataset,
+            "number_of_classes": 10,
+            "input_resolution": [32, 32],
+            "train_sample_count": train_sample_count,
+            "validation_sample_count": validation_sample_count,
+            "test_sample_count": test_sample_count,
+            "preprocessing": (
+                "ToTensor to raw [0,1], optional training Mixup, then "
+                "continuous TTFS encoding"
+            ),
+            "augmentation": (
+                "training: RandomCrop(32,padding=4), RandomHorizontalFlip, "
+                f"Mixup(alpha={args.mixup_alpha}); validation/test: ToTensor only"
+            ),
+        },
+        "architecture": {
+            "dims": list(args.dims),
+            "depths": list(args.depths),
+            "parameter_count": parameter_count,
+            "stem_kernel": 3,
+            "stem_stride": 1,
+            "stem_padding": 1,
+            "residual_operator": args.residual_operator,
+            "pw1_mode": args.pw1_mode,
+            "pw2_mode": args.pw2_mode,
+            "spike_dropout": args.spike_dropout,
+            "delay_enabled": delay_enabled,
+            "stage_delays": stage_delays,
+            "t_min": args.t_min,
+            "t_max": args.t_max,
+        },
+        "training": {
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "optimizer": "AdamW",
+            "learning_rate": args.lr,
+            "weight_decay": args.weight_decay,
+            "label_smoothing": args.label_smoothing,
+            "head_dropout": args.head_dropout,
+            "mixup_alpha": args.mixup_alpha,
+            "early_stopping_patience": args.early_stopping_patience,
+        },
+        "results": {
+            "best_epoch": previous_results.get("best_epoch"),
+            "best_validation_accuracy": previous_results.get(
+                "best_validation_accuracy"
+            ),
+            "final_train_accuracy": previous_results.get("final_train_accuracy"),
+            "final_validation_accuracy": previous_results.get(
+                "final_validation_accuracy"
+            ),
+            "test_accuracy": previous_results.get("test_accuracy"),
+            "test_loss": previous_results.get("test_loss"),
+            "training_time_seconds": previous_results.get(
+                "training_time_seconds", 0.0
+            ),
+            "checkpoint_path": previous_results.get("checkpoint_path"),
+        },
+        "optional_evaluation": {
+            "activation_sparsity": previous_optional.get("activation_sparsity"),
+            "dense_macs_per_sample": previous_optional.get(
+                "dense_macs_per_sample"
+            ),
+            "theoretical_synops_per_sample": previous_optional.get(
+                "theoretical_synops_per_sample"
+            ),
+        },
+    }
 
 
 def run_epoch(model, loader, criterion, device, args, optimizer=None, scaler=None):
@@ -433,6 +563,27 @@ def main():
         json.dumps(config, indent=2), encoding="utf-8"
     )
 
+    tracker = SimpleExperimentTracker(
+        output_directory=output_dir,
+        registry_path=Path(__file__).resolve().parent / "experiments_registry.csv",
+    )
+    experiment_report = create_experiment_report(
+        args=args,
+        output_dir=output_dir,
+        train_sample_count=len(train_loader.dataset),
+        validation_sample_count=len(validation_loader.dataset),
+        test_sample_count=len(test_loader.dataset),
+        parameter_count=parameter_count,
+        previous_report=tracker.load_existing_report(),
+    )
+    previous_training_time = experiment_report["results"].get(
+        "training_time_seconds"
+    )
+    if not isinstance(previous_training_time, (int, float)):
+        previous_training_time = 0.0
+    tracking_session_started = time.time()
+    tracker.save(experiment_report)
+
     stopped_early = False
     last_epoch = start_epoch - 1
     for epoch in range(start_epoch, args.epochs):
@@ -498,7 +649,28 @@ def main():
         )
         last_epoch = epoch
 
-        if epochs_without_improvement >= args.early_stopping_patience:
+        should_stop = (
+            epochs_without_improvement >= args.early_stopping_patience
+        )
+        experiment_report["experiment"]["status"] = (
+            "early_stopped" if should_stop else "running"
+        )
+        experiment_report["results"].update(
+            {
+                "best_epoch": best_epoch,
+                "best_validation_accuracy": best_validation_accuracy,
+                "final_train_accuracy": train_metrics["accuracy"],
+                "final_validation_accuracy": validation_metrics["accuracy"],
+                "training_time_seconds": previous_training_time
+                + (time.time() - tracking_session_started),
+                "checkpoint_path": str(
+                    (output_dir / "best_checkpoint.pth").resolve()
+                ),
+            }
+        )
+        tracker.save(experiment_report)
+
+        if should_stop:
             stopped_early = True
             print(
                 f"Early stopping at epoch {epoch}: validation accuracy did not "
@@ -533,6 +705,21 @@ def main():
     (output_dir / "training_summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"
     )
+    experiment_report["experiment"]["status"] = (
+        "early_stopped" if stopped_early else "completed"
+    )
+    experiment_report["results"].update(
+        {
+            "best_epoch": best_epoch,
+            "best_validation_accuracy": best_validation_accuracy,
+            "test_accuracy": test_metrics["accuracy"],
+            "test_loss": test_metrics["loss"],
+            "training_time_seconds": previous_training_time
+            + (time.time() - tracking_session_started),
+            "checkpoint_path": str(best_checkpoint_path.resolve()),
+        }
+    )
+    tracker.save(experiment_report)
     print(json.dumps(summary, indent=2))
 
 

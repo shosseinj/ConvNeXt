@@ -1,7 +1,7 @@
 {
   "data_path": "..\\cifar_data",
-  "output_dir": ".\\results\\cifar10_ttfs_small_64_128_256_512_seed42",
-  "resume": ".\\results\\cifar10_ttfs_small_64_128_256_512_seed42\\last_checkpoint.pth",
+  "output_dir": "results\\cifar10_ttfs_medium_32x32_seed42",
+  "resume": "",
   "experiment_name": "",
   "experiment_notes": "",
   "dataset": "CIFAR-10",
@@ -19,19 +19,20 @@
   "weight_decay": 0.1,
   "label_smoothing": 0.1,
   "head_dropout": 0.2,
+  "spike_dropout": 0.1,
   "mixup_alpha": 0.2,
   "early_stopping_patience": 30,
   "dims": [
-    64,
-    128,
-    256,
-    512
+    80,
+    160,
+    320,
+    640
   ],
   "depths": [
-    2,
-    2,
-    6,
-    2
+    3,
+    3,
+    9,
+    3
   ],
   "grad_clip": 5.0,
   "drop_path": 0.0,
@@ -53,7 +54,7 @@
     "kernel_size": 3,
     "stride": 1,
     "padding": 1,
-    "out_channels": 64
+    "out_channels": 80
   },
   "spatial_schedule": [
     32,
@@ -62,7 +63,7 @@
     8,
     4
   ],
-  "parameter_count": 8543242,
+  "parameter_count": 19392890,
   "temporal_formulation": "continuous analytic TTFS",
   "simulation_steps": null,
   "mixup_order": "raw images in [0,1], then TTFS encode"
