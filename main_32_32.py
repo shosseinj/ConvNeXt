@@ -36,6 +36,20 @@ import utils
 
 from collections import defaultdict
 
+def resolve_checkpoint(path):
+    resolved = os.path.normpath(path)
+    if os.path.isdir(resolved):
+        candidates = [
+            os.path.join(resolved, name)
+            for name in os.listdir(resolved)
+            if name.endswith((".pth", ".pt"))
+        ]
+        if not candidates:
+            raise FileNotFoundError(f"No .pth or .pt checkpoint in {resolved}")
+        resolved = max(candidates, key=os.path.getmtime)
+    if not os.path.isfile(resolved):
+        raise FileNotFoundError(resolved)
+    return resolved
 
 
 class SparsityHook:
@@ -57,6 +71,55 @@ class SparsityHook:
             self.spike_times.append(spike_times)
 
 
+def load_checkpoint_with_integrity(model, checkpoint_path, model_key):
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    state_dict = checkpoint
+    if isinstance(checkpoint, dict):
+        for key in model_key.split("|"):
+            if key in checkpoint and isinstance(checkpoint[key], dict):
+                state_dict = checkpoint[key]
+                break
+    if not isinstance(state_dict, dict):
+        raise TypeError("Checkpoint does not contain a state dictionary")
+
+    state_dict = {
+        (key[7:] if key.startswith("module.") else key): value
+        for key, value in state_dict.items()
+    }
+    model_state = model.state_dict()
+    unexpected = sorted(key for key in state_dict if key not in model_state)
+    shape_mismatches = []
+    compatible = {}
+    for key, value in state_dict.items():
+        if key not in model_state:
+            continue
+        if not hasattr(value, "shape") or tuple(value.shape) != tuple(model_state[key].shape):
+            shape_mismatches.append(
+                {
+                    "key": key,
+                    "checkpoint_shape": list(value.shape) if hasattr(value, "shape") else None,
+                    "model_shape": list(model_state[key].shape),
+                }
+            )
+            continue
+        compatible[key] = value
+
+    missing = sorted(key for key in model_state if key not in compatible)
+    model.load_state_dict(compatible, strict=False)
+    integrity = {
+        "checkpoint": os.path.abspath(checkpoint_path),
+        "loaded_key_count": len(compatible),
+        "missing_keys": missing,
+        "unexpected_keys": unexpected,
+        "shape_mismatches": shape_mismatches,
+    }
+    print(f"Checkpoint: {integrity['checkpoint']}")
+    print(f"Loaded compatible keys: {len(compatible)}")
+    print("Missing keys:", missing)
+    print("Unexpected keys:", unexpected)
+    print("Shape mismatches:", shape_mismatches)
+    return integrity
+
 
 
 def str2bool(v):
@@ -75,7 +138,7 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=800, type=int,
+    parser.add_argument('--batch_size', default=10, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--update_freq', default=1, type=int,
@@ -379,6 +442,9 @@ def main(args):
         from torchinfo import summary
         summary(model, input_size=(1, 3, 32, 32), device="cpu" if not torch.cuda.is_available() else "cuda")
         # return 0
+
+    checkpoint_path = resolve_checkpoint(args.load_weights)
+    integrity = load_checkpoint_with_integrity(model, checkpoint_path, args.model_key)
 
     if args.eval:
         print(f"Eval only mode")
