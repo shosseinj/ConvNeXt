@@ -68,6 +68,11 @@ def args_parser():
     parser.add_argument("--residual_operator", default="min")
     parser.add_argument("--pw1_mode", default="continuous TTFS")
     parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="ttfs")
+    parser.add_argument(
+        "--ttfs_norm_mode",
+        choices=("none", "score_layernorm"),
+        default="none",
+    )
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch_size", type=int, default=128)
@@ -221,6 +226,7 @@ def make_model(args):
         head_dropout=args.head_dropout,
         spike_dropout=args.spike_dropout,
         pw2_mode=args.pw2_mode,
+        ttfs_norm_mode=args.ttfs_norm_mode,
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -265,6 +271,7 @@ def architecture_metadata(args):
         "input_resolution": [32, 32],
         "depthwise_kernel_size": args.dw_kernel_size,
         "pw2_mode": args.pw2_mode,
+        "ttfs_norm_mode": args.ttfs_norm_mode,
         "downsample_kernel_size": 3,
         "downsample_stride": 2,
         "downsample_padding": 1,
@@ -317,8 +324,16 @@ def delay_gradient_diagnostic(model, args, device):
         model.zero_grad(set_to_none=True)
         images = torch.rand(2, 3, 32, 32, device=device)
         logits = model(encode(images, args))
+        if logits.shape != (images.size(0), 10):
+            raise RuntimeError(
+                f"Diagnostic expected logits shape {(images.size(0), 10)}, "
+                f"got {tuple(logits.shape)}"
+            )
+        if not torch.isfinite(logits).all():
+            raise FloatingPointError("Diagnostic produced non-finite logits")
         logits.square().mean().backward()
         stage_norms = []
+        norm_gradient_norms = []
         for stage_index, stage in enumerate(model.stages):
             squared_mid = 0.0
             squared_out = 0.0
@@ -343,7 +358,32 @@ def delay_gradient_diagnostic(model, args, device):
                     "D_out": math.sqrt(squared_out) if stage[0].D_out is not None else None,
                 }
             )
-        return stage_norms
+            for block_index, block in enumerate(stage):
+                if block.norm is None:
+                    continue
+                for parameter_name, parameter in block.norm.named_parameters():
+                    if parameter.grad is None or not torch.isfinite(parameter.grad).all():
+                        raise RuntimeError(
+                            "LayerNorm parameter received a missing or non-finite "
+                            f"gradient: stage={stage_index}, block={block_index}, "
+                            f"parameter={parameter_name}"
+                        )
+                    norm_gradient_norms.append(
+                        {
+                            "stage": stage_index,
+                            "block": block_index,
+                            "parameter": parameter_name,
+                            "gradient_norm": float(
+                                parameter.grad.float().norm().item()
+                            ),
+                        }
+                    )
+        return {
+            "logits_shape": list(logits.shape),
+            "logits_finite": True,
+            "delay_gradient_norms": stage_norms,
+            "layernorm_gradient_norms": norm_gradient_norms,
+        }
     finally:
         model.zero_grad(set_to_none=True)
         model.train(was_training)
@@ -419,6 +459,7 @@ def create_experiment_report(
             "residual_operator": args.residual_operator,
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
+            "ttfs_norm_mode": args.ttfs_norm_mode,
             "spike_dropout": args.spike_dropout,
             "delay_enabled": delay_enabled,
             "stage_delays": stage_delays,
@@ -641,10 +682,13 @@ def main():
         f"Architecture: dims={args.dims}, depths={args.depths}, "
         f"parameters={parameter_count:,}"
     )
+    print(f"TTFS normalization mode: {args.ttfs_norm_mode}")
     measured_delays = actual_stage_delays(model)
     print("Actual stage delays:", measured_delays)
-    delay_gradient_norms = delay_gradient_diagnostic(model, args, device)
+    smoke_test = delay_gradient_diagnostic(model, args, device)
+    delay_gradient_norms = smoke_test["delay_gradient_norms"]
     print("Delay gradient norms after test backward:", delay_gradient_norms)
+    print("TTFS normalization smoke test:", smoke_test)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     optimizer = torch.optim.AdamW(
@@ -722,6 +766,8 @@ def main():
         "actual_stage_delays": measured_delays,
         "delay_parameterization": "max_delay * sigmoid(raw_delay)",
         "delay_gradient_norms_test_backward": delay_gradient_norms,
+        "ttfs_normalization_mode": args.ttfs_norm_mode,
+        "ttfs_normalization_smoke_test": smoke_test,
         "parameter_count": parameter_count,
         "temporal_formulation": "continuous analytic TTFS",
         "simulation_steps": None,

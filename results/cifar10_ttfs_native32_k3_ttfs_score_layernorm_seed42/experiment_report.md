@@ -1,16 +1,16 @@
-# Experiment Report: cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42
+# Experiment Report: cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42 |
-| Date Time | 2026-08-06T15:00:06+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42 |
+| Experiment Name | cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42 |
+| Date Time | 2026-08-06T16:55:46+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42 |
 | Notes | unknown |
 | Seed | 42 |
-| Status | running |
-| Updated At | 2026-08-06T16:54:34+03:30 |
+| Status | early_stopped |
+| Updated At | 2026-08-06T17:42:37+03:30 |
 
 ## Dataset
 
@@ -31,7 +31,7 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 20840458 |
+| Parameter Count | 20849290 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
@@ -42,6 +42,7 @@
 | Residual Operator | min |
 | Pw1 Mode | continuous TTFS |
 | Pw2 Mode | ttfs |
+| Ttfs Norm Mode | score_layernorm |
 | Spike Dropout | 0.0 |
 | Delay Enabled | true |
 | Stage Delays | [0.05,0.02,0.01,0.01] |
@@ -56,7 +57,7 @@
 | Epochs | 350 |
 | Batch Size | 128 |
 | Optimizer | AdamW |
-| Learning Rate | 0.0003 |
+| Learning Rate | 0.0004 |
 | Lr Scheduler | ReduceLROnPlateau(mode=max) |
 | Lr Scheduler Patience | 6 |
 | Lr Scheduler Factor | 0.5 |
@@ -66,21 +67,21 @@
 | Head Dropout | 0.1 |
 | Mixup Alpha | 0.2 |
 | Early Stopping Patience | 20 |
-| Ema Enabled | true |
-| Ema Decay | 0.9998 |
+| Ema Enabled | false |
+| Ema Decay | unknown |
 
 ## Results
 
 | Field | Value |
 |---|---|
-| Best Epoch | 280 |
-| Best Validation Accuracy | 89.36 |
-| Final Train Accuracy | 90.565359488833 |
-| Final Validation Accuracy | 89.38 |
-| Test Accuracy | 88.03 |
-| Test Loss | 0.8006275066375732 |
-| Training Time Seconds | 5757.109382867813 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\best_checkpoint.pth |
+| Best Epoch | 115 |
+| Best Validation Accuracy | 89.8 |
+| Final Train Accuracy | 89.10562670556484 |
+| Final Validation Accuracy | 89.62 |
+| Test Accuracy | 88.3 |
+| Test Loss | 0.8009320064544678 |
+| Training Time Seconds | 2665.025101661682 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

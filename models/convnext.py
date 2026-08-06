@@ -1099,7 +1099,8 @@ class SpikingBlock(nn.Module):
     """
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
-                 spike_dropout: float = 0.0, pw2_mode: str = "ttfs"):
+                 spike_dropout: float = 0.0, pw2_mode: str = "ttfs",
+                 ttfs_norm_mode: str = "none"):
         super().__init__()
         # reuse modules (share weights)
         self.dwconv = orig_block.dwconv
@@ -1116,6 +1117,16 @@ class SpikingBlock(nn.Module):
         self.pw2_mode = str(pw2_mode).strip().lower()
         if self.pw2_mode not in {"ttfs", "dense"}:
             raise ValueError("pw2_mode must be 'ttfs' or 'dense'")
+        self.ttfs_norm_mode = str(ttfs_norm_mode).strip().lower()
+        if self.ttfs_norm_mode not in {"none", "score_layernorm"}:
+            raise ValueError(
+                "ttfs_norm_mode must be 'none' or 'score_layernorm'"
+            )
+        self.norm = (
+            nn.LayerNorm(self.dwconv.out_channels, eps=1e-6)
+            if self.ttfs_norm_mode == "score_layernorm"
+            else None
+        )
 
         self.max_delay = 0.9 * (self.t_max - self.t_min)
         if self.max_delay <= 0.0:
@@ -1176,7 +1187,12 @@ class SpikingBlock(nn.Module):
 
         # prepare for pointwise linear mapping per spatial location
         N, C, H, W = x.shape
-        x_flat = x.permute(0, 2, 3, 1).reshape(-1, C)  # (N*H*W, C_in)
+        x = x.permute(0, 2, 3, 1)
+        if self.ttfs_norm_mode == "score_layernorm":
+            scores = -x
+            scores = self.norm(scores)
+            x = -scores
+        x_flat = x.reshape(-1, C)  # (N*H*W, C_in)
 
         # pw1
         # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
@@ -1234,7 +1250,7 @@ class SpikingBlock(nn.Module):
 class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
                  spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
-                 stage_delays=None, **kwargs):
+                 stage_delays=None, ttfs_norm_mode="none", **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         self.init_delay = float(init_delay)
@@ -1257,7 +1273,8 @@ class ConvNeXtSpiking(ConvNeXt):
                     force_positive_weights=self.force_positive_weights,
                     init_delay=self.stage_delays[si],
                     spike_dropout=spike_dropout,
-                    pw2_mode=pw2_mode
+                    pw2_mode=pw2_mode,
+                    ttfs_norm_mode=ttfs_norm_mode,
                 )
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)

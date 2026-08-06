@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
-    "date_time": "2026-08-06T15:00:06+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
+    "experiment_name": "cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42",
+    "date_time": "2026-08-06T16:55:46+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42",
     "notes": null,
     "seed": 42,
-    "status": "running",
-    "updated_at": "2026-08-06T16:54:34+03:30"
+    "status": "early_stopped",
+    "updated_at": "2026-08-06T17:42:37+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -34,7 +34,7 @@
       6,
       2
     ],
-    "parameter_count": 20840458,
+    "parameter_count": 20849290,
     "stem_kernel": 3,
     "stem_stride": 1,
     "stem_padding": 1,
@@ -45,6 +45,7 @@
     "residual_operator": "min",
     "pw1_mode": "continuous TTFS",
     "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
     "spike_dropout": 0.0,
     "delay_enabled": true,
     "stage_delays": [
@@ -61,7 +62,7 @@
     "epochs": 350,
     "batch_size": 128,
     "optimizer": "AdamW",
-    "learning_rate": 0.0003,
+    "learning_rate": 0.0004,
     "lr_scheduler": "ReduceLROnPlateau(mode=max)",
     "lr_scheduler_patience": 6,
     "lr_scheduler_factor": 0.5,
@@ -71,18 +72,18 @@
     "head_dropout": 0.1,
     "mixup_alpha": 0.2,
     "early_stopping_patience": 20,
-    "ema_enabled": true,
-    "ema_decay": 0.9998
+    "ema_enabled": false,
+    "ema_decay": null
   },
   "results": {
-    "best_epoch": 280,
-    "best_validation_accuracy": 89.36,
-    "final_train_accuracy": 90.565359488833,
-    "final_validation_accuracy": 89.38,
-    "test_accuracy": 88.03,
-    "test_loss": 0.8006275066375732,
-    "training_time_seconds": 5757.109382867813,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\\best_checkpoint.pth"
+    "best_epoch": 115,
+    "best_validation_accuracy": 89.8,
+    "final_train_accuracy": 89.10562670556484,
+    "final_validation_accuracy": 89.62,
+    "test_accuracy": 88.3,
+    "test_loss": 0.8009320064544678,
+    "training_time_seconds": 2665.025101661682,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_score_layernorm_seed42\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,
