@@ -58,7 +58,7 @@ def args_parser():
     parser.add_argument("--data_path", default="../cifar_data")
     parser.add_argument(
         "--output_dir",
-        default="results/cifar10_ttfs_native32_proposed_seed42",
+        default="results/cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
     )
     parser.add_argument("--resume", default="")
     parser.add_argument("--experiment_name", default="")
@@ -66,7 +66,7 @@ def args_parser():
     parser.add_argument("--dataset", default="CIFAR-10")
     parser.add_argument("--residual_operator", default="min")
     parser.add_argument("--pw1_mode", default="continuous TTFS")
-    parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="dense")
+    parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="ttfs")
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch_size", type=int, default=128)
@@ -78,12 +78,12 @@ def args_parser():
     parser.add_argument("--weight_decay", type=float, default=0.05)
     parser.add_argument("--label_smoothing", type=float, default=0.1)
     parser.add_argument("--head_dropout", type=float, default=0.1)
-    parser.add_argument("--spike_dropout", type=float, default=0.05)
+    parser.add_argument("--spike_dropout", type=float, default=0.0)
     parser.add_argument("--mixup_alpha", type=float, default=0.2)
     parser.add_argument("--early_stopping_patience", type=int, default=30)
-    parser.add_argument("--dims", type=four_int_tuple, default="96,192,384,512")
-    parser.add_argument("--depths", type=four_int_tuple, default="3,3,6,3")
-    parser.add_argument("--dw_kernel_size", type=int, default=3)
+    parser.add_argument("--dims", type=four_int_tuple, default="96,192,384,768")
+    parser.add_argument("--depths", type=four_int_tuple, default="2,2,6,2")
+    parser.add_argument("--dw_kernel_size", type=int, choices=(3, 5, 7), default=3)
     parser.add_argument("--grad_clip", type=float, default=5.0)
     parser.add_argument("--drop_path", type=float, default=0.0)
     parser.add_argument("--t_min", type=float, default=0.0)
@@ -106,8 +106,6 @@ def args_parser():
         parser.error("--spike_dropout must be in [0,1]")
     if args.early_stopping_patience < 1:
         parser.error("--early_stopping_patience must be at least 1")
-    if args.dw_kernel_size <= 0 or args.dw_kernel_size % 2 == 0:
-        parser.error("--dw_kernel_size must be a positive odd integer")
     return args
 
 
@@ -178,6 +176,8 @@ def make_model(args):
         depths=args.depths,
         dims=args.dims,
         dw_kernel_size=args.dw_kernel_size,
+        cifar_stem=True,
+        downsample_kernel_size=3,
         drop_path_rate=args.drop_path,
         t_min=args.t_min,
         t_max=args.t_max,
@@ -187,16 +187,6 @@ def make_model(args):
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
-    )
-    stem = nn.Conv2d(
-        3, args.dims[0], kernel_size=3, stride=1, padding=1, bias=True
-    )
-    nn.init.trunc_normal_(stem.weight, std=0.02)
-    nn.init.zeros_(stem.bias)
-    model.downsample_layers[0] = (
-        nn.Sequential(stem)
-        if isinstance(model.downsample_layers[0], nn.Sequential)
-        else stem
     )
     return model
 
@@ -238,6 +228,11 @@ def architecture_metadata(args):
         "input_resolution": [32, 32],
         "depthwise_kernel_size": args.dw_kernel_size,
         "pw2_mode": args.pw2_mode,
+        "downsample_kernel_size": 3,
+        "downsample_stride": 2,
+        "downsample_padding": 1,
+        "stage_delays": [float(value) for value in args.stage_delays.split(",")],
+        "delay_parameterization": "max_delay * sigmoid(raw_delay)",
         "stem": {
             "in_channels": 3,
             "out_channels": args.dims[0],
@@ -257,6 +252,67 @@ def validate_resume_architecture(checkpoint, args):
             f"Checkpoint={checkpoint_architecture}, requested={requested_architecture}. "
             "Do not resume the previous large-model checkpoint."
         )
+
+
+def actual_stage_delays(model):
+    values = []
+    for stage_index, stage in enumerate(model.stages):
+        block_values = [block.effective_delay_means() for block in stage]
+        values.append(
+            {
+                "stage": stage_index,
+                "mid": sum(item["mid"] for item in block_values) / len(block_values),
+                "out": (
+                    sum(item["out"] for item in block_values) / len(block_values)
+                    if block_values[0]["out"] is not None else None
+                ),
+            }
+        )
+    return values
+
+
+def delay_gradient_diagnostic(model, args, device):
+    cpu_rng_state = torch.random.get_rng_state()
+    cuda_rng_states = torch.cuda.get_rng_state_all() if device.type == "cuda" else None
+    was_training = model.training
+    try:
+        model.train()
+        model.zero_grad(set_to_none=True)
+        images = torch.rand(2, 3, 32, 32, device=device)
+        logits = model(encode(images, args))
+        logits.square().mean().backward()
+        stage_norms = []
+        for stage_index, stage in enumerate(model.stages):
+            squared_mid = 0.0
+            squared_out = 0.0
+            for block in stage:
+                if block.D_mid.grad is None:
+                    raise RuntimeError(
+                        f"Missing delay gradient in stage {stage_index}"
+                    )
+                squared_mid += float(block.D_mid.grad.float().square().sum().item())
+                if block.D_out is not None:
+                    if block.D_out.grad is None:
+                        raise RuntimeError(
+                            f"Missing output delay gradient in stage {stage_index}"
+                        )
+                    squared_out += float(
+                        block.D_out.grad.float().square().sum().item()
+                    )
+            stage_norms.append(
+                {
+                    "stage": stage_index,
+                    "D_mid": math.sqrt(squared_mid),
+                    "D_out": math.sqrt(squared_out) if stage[0].D_out is not None else None,
+                }
+            )
+        return stage_norms
+    finally:
+        model.zero_grad(set_to_none=True)
+        model.train(was_training)
+        torch.random.set_rng_state(cpu_rng_state)
+        if cuda_rng_states is not None:
+            torch.cuda.set_rng_state_all(cuda_rng_states)
 
 
 def create_experiment_report(
@@ -320,12 +376,16 @@ def create_experiment_report(
             "stem_stride": 1,
             "stem_padding": 1,
             "depthwise_kernel_size": args.dw_kernel_size,
+            "downsample_kernel": 3,
+            "downsample_stride": 2,
+            "downsample_padding": 1,
             "residual_operator": args.residual_operator,
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
             "spike_dropout": args.spike_dropout,
             "delay_enabled": delay_enabled,
             "stage_delays": stage_delays,
+            "delay_parameterization": "max_delay * sigmoid(raw_delay)",
             "t_min": args.t_min,
             "t_max": args.t_max,
         },
@@ -511,13 +571,28 @@ def main():
     }
     assert shapes == expected_shapes, f"Expected {expected_shapes}, got {shapes}"
     stem = model.downsample_layers[0][0]
-    assert stem.out_channels == args.dims[0]
+    assert (
+        stem.in_channels,
+        stem.out_channels,
+        stem.kernel_size,
+        stem.stride,
+        stem.padding,
+    ) == (3, args.dims[0], (3, 3), (1, 1), (1, 1))
+    for layer in model.downsample_layers[1:]:
+        convolution = layer[0]
+        assert convolution.kernel_size == (3, 3)
+        assert convolution.stride == (2, 2)
+        assert convolution.padding == (1, 1)
     assert model.head.in_features == args.dims[-1]
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
     print(
         f"Architecture: dims={args.dims}, depths={args.depths}, "
         f"parameters={parameter_count:,}"
     )
+    measured_delays = actual_stage_delays(model)
+    print("Actual stage delays:", measured_delays)
+    delay_gradient_norms = delay_gradient_diagnostic(model, args, device)
+    print("Delay gradient norms after test backward:", delay_gradient_norms)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     optimizer = torch.optim.AdamW(
@@ -563,6 +638,14 @@ def main():
         },
         "spatial_schedule": [32, 32, 16, 8, 4],
         "depthwise_kernel_size": args.dw_kernel_size,
+        "downsampling": {
+            "kernel_size": 3,
+            "stride": 2,
+            "padding": 1,
+        },
+        "actual_stage_delays": measured_delays,
+        "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+        "delay_gradient_norms_test_backward": delay_gradient_norms,
         "parameter_count": parameter_count,
         "temporal_formulation": "continuous analytic TTFS",
         "simulation_steps": None,

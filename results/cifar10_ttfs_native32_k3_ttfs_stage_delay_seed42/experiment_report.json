@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "Native32 TTFS pw1 Dense pw2",
-    "date_time": "2026-08-06T14:31:13+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_pw1_dense_pw2_seed42",
-    "notes": "One TTFS pointwise layer; dense score-domain pw2",
+    "experiment_name": "cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
+    "date_time": "2026-08-06T15:00:06+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
+    "notes": null,
     "seed": 42,
     "status": "running",
-    "updated_at": "2026-08-06T14:59:53+03:30"
+    "updated_at": "2026-08-06T15:22:36+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -26,30 +26,34 @@
       96,
       192,
       384,
-      512
+      768
     ],
     "depths": [
-      3,
-      3,
+      2,
+      2,
       6,
-      3
+      2
     ],
-    "parameter_count": 15733322,
+    "parameter_count": 20840458,
     "stem_kernel": 3,
     "stem_stride": 1,
     "stem_padding": 1,
     "depthwise_kernel_size": 3,
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
     "residual_operator": "min",
     "pw1_mode": "continuous TTFS",
-    "pw2_mode": "dense",
+    "pw2_mode": "ttfs",
     "spike_dropout": 0.0,
     "delay_enabled": true,
     "stage_delays": [
-      0.4,
-      0.0,
-      0.0,
-      0.0
+      0.05,
+      0.02,
+      0.01,
+      0.01
     ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
     "t_min": 0.0,
     "t_max": 1.0
   },
@@ -65,14 +69,14 @@
     "early_stopping_patience": 30
   },
   "results": {
-    "best_epoch": 82,
-    "best_validation_accuracy": 72.58,
-    "final_train_accuracy": 62.92764772396427,
-    "final_validation_accuracy": 72.58,
+    "best_epoch": 65,
+    "best_validation_accuracy": 84.9,
+    "final_train_accuracy": 84.08200260430846,
+    "final_validation_accuracy": 84.62,
     "test_accuracy": null,
     "test_loss": null,
-    "training_time_seconds": 1719.9413788318634,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_pw1_dense_pw2_seed42\\best_checkpoint.pth"
+    "training_time_seconds": 1297.7125103473663,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,

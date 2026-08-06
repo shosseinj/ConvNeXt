@@ -1,0 +1,122 @@
+{
+  "data_path": "..\\cifar_data",
+  "output_dir": ".\\results\\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
+  "resume": "",
+  "experiment_name": "cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
+  "experiment_notes": "",
+  "dataset": "CIFAR-10",
+  "residual_operator": "min",
+  "pw1_mode": "continuous TTFS",
+  "pw2_mode": "ttfs",
+  "download": false,
+  "epochs": 300,
+  "batch_size": 128,
+  "num_workers": 4,
+  "seed": 42,
+  "lr": 0.0003,
+  "min_lr": 1e-06,
+  "warmup_epochs": 10,
+  "weight_decay": 0.05,
+  "label_smoothing": 0.1,
+  "head_dropout": 0.1,
+  "spike_dropout": 0.0,
+  "mixup_alpha": 0.2,
+  "early_stopping_patience": 30,
+  "dims": [
+    96,
+    192,
+    384,
+    768
+  ],
+  "depths": [
+    2,
+    2,
+    6,
+    2
+  ],
+  "dw_kernel_size": 3,
+  "grad_clip": 5.0,
+  "drop_path": 0.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "force_positive_weights": false,
+  "init_delay": 0.0,
+  "stage_delays": "0.05,0.02,0.01,0.01",
+  "amp": true,
+  "device": "cuda",
+  "val_size": 5000,
+  "print_freq": 50,
+  "input_resolution": [
+    32,
+    32
+  ],
+  "stem": {
+    "in_channels": 3,
+    "kernel_size": 3,
+    "stride": 1,
+    "padding": 1,
+    "out_channels": 96
+  },
+  "spatial_schedule": [
+    32,
+    32,
+    16,
+    8,
+    4
+  ],
+  "depthwise_kernel_size": 3,
+  "downsampling": {
+    "kernel_size": 3,
+    "stride": 2,
+    "padding": 1
+  },
+  "actual_stage_delays": [
+    {
+      "stage": 0,
+      "mid": 0.05000000447034836,
+      "out": 0.05000000447034836
+    },
+    {
+      "stage": 1,
+      "mid": 0.019999999552965164,
+      "out": 0.019999999552965164
+    },
+    {
+      "stage": 2,
+      "mid": 0.009999999776482582,
+      "out": 0.009999999776482582
+    },
+    {
+      "stage": 3,
+      "mid": 0.009999999776482582,
+      "out": 0.009999999776482582
+    }
+  ],
+  "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+  "delay_gradient_norms_test_backward": [
+    {
+      "stage": 0,
+      "D_mid": 0.0,
+      "D_out": 0.0
+    },
+    {
+      "stage": 1,
+      "D_mid": 0.0001139575029114819,
+      "D_out": 0.000212116986458233
+    },
+    {
+      "stage": 2,
+      "D_mid": 0.00044884981128833824,
+      "D_out": 0.0005925595348152181
+    },
+    {
+      "stage": 3,
+      "D_mid": 0.0006722396705812993,
+      "D_out": 0.0007099345075568291
+    }
+  ],
+  "parameter_count": 20840458,
+  "temporal_formulation": "continuous analytic TTFS",
+  "simulation_steps": null,
+  "mixup_order": "raw images in [0,1], then TTFS encode"
+}

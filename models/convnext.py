@@ -1019,7 +1019,8 @@ class ConvNeXt(nn.Module):
     def __init__(self, in_chans=3, num_classes=1000, depths=(3, 3, 9, 3),
                  dims=(96, 192, 384, 768), drop_path_rate=0.,
                  head_init_scale=1., layer_scale_init_value=1e-6,
-                 dw_kernel_size=7, **kwargs):
+                 dw_kernel_size=7, cifar_stem=False,
+                 downsample_kernel_size=2, **kwargs):
         # ----- timm ≥ 0.9 compatibility -----
         # ----- timm ≥ 0.9 passes this key; ignore it -----
         kwargs.pop('pretrained_cfg', None)
@@ -1027,14 +1028,29 @@ class ConvNeXt(nn.Module):
 
         self.downsample_layers = nn.ModuleList() # stem and 3 intermediate downsampling conv layers
         stem = nn.Sequential(
-            nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4),
+            nn.Conv2d(
+                in_chans, dims[0],
+                kernel_size=3 if cifar_stem else 4,
+                stride=1 if cifar_stem else 4,
+                padding=1 if cifar_stem else 0,
+            ),
             # LayerNorm(dims[0], eps=1e-6, data_format="channels_first")
         )
         self.downsample_layers.append(stem)
+        if downsample_kernel_size <= 0:
+            raise ValueError("downsample_kernel_size must be positive")
         for i in range(3):
             downsample_layer = nn.Sequential(
                     # LayerNorm(dims[i], eps=1e-6, data_format="channels_first"),
-                    nn.Conv2d(dims[i], dims[i+1], kernel_size=2, stride=2),
+                    nn.Conv2d(
+                        dims[i], dims[i+1],
+                        kernel_size=downsample_kernel_size,
+                        stride=2,
+                        padding=(
+                            downsample_kernel_size // 2
+                            if downsample_kernel_size % 2 else 0
+                        ),
+                    ),
             )
             self.downsample_layers.append(downsample_layer)
 
@@ -1101,18 +1117,42 @@ class SpikingBlock(nn.Module):
         if self.pw2_mode not in {"ttfs", "dense"}:
             raise ValueError("pw2_mode must be 'ttfs' or 'dense'")
 
-        self.D_mid = nn.Parameter(torch.zeros(self.pw1.out_features))
+        self.max_delay = 0.9 * (self.t_max - self.t_min)
+        if self.max_delay <= 0.0:
+            raise ValueError("t_max must be greater than t_min")
+        initial_raw_delay = self._raw_delay_from_value(init_delay)
+        self.D_mid = nn.Parameter(
+            torch.full((self.pw1.out_features,), initial_raw_delay)
+        )
         if self.pw2_mode == "ttfs":
-            self.D_out = nn.Parameter(torch.zeros(self.pw2.out_features))
+            self.D_out = nn.Parameter(
+                torch.full((self.pw2.out_features,), initial_raw_delay)
+            )
         else:
             self.register_parameter("D_out", None)
-        # Optionally initialize delays to a small positive value (helps push spikes later early)
         self._init_delay = float(init_delay)
-        if self._init_delay > 0.0:
-            with torch.no_grad():
-                self.D_mid.data.fill_(self._init_delay)
-                if self.D_out is not None:
-                    self.D_out.data.fill_(self._init_delay)
+
+    def _raw_delay_from_value(self, delay):
+        ratio = float(delay) / self.max_delay
+        ratio = min(max(ratio, 1e-6), 1.0 - 1e-6)
+        return float(torch.logit(torch.tensor(ratio)).item())
+
+    def _bounded_delay(self, raw_delay, device, dtype):
+        return (
+            self.max_delay * torch.sigmoid(raw_delay)
+        ).to(device=device, dtype=dtype)
+
+    def effective_delay_means(self):
+        with torch.no_grad():
+            mid = float(self._bounded_delay(
+                self.D_mid, self.D_mid.device, self.D_mid.dtype
+            ).mean().item())
+            out = None
+            if self.D_out is not None:
+                out = float(self._bounded_delay(
+                    self.D_out, self.D_out.device, self.D_out.dtype
+                ).mean().item())
+        return {"mid": mid, "out": out}
 
 
     def _apply_spike_dropout(self, t_out):
@@ -1144,9 +1184,8 @@ class SpikingBlock(nn.Module):
         W1 = (torch.relu(self.pw1.weight) if self.force_positive_weights else self.pw1.weight).t().contiguous()  # (C_in, C_mid)
         device = x_flat.device
         dtype = x_flat.dtype
-        # Use learned per-output delays (non-negative and bounded) instead of zeros
-        # self.D_mid is a parameter created at init; clamp it to a sensible max
-        D_mid = torch.clamp(torch.relu(self.D_mid), max=0.9 * (self.t_max - self.t_min)).to(device=device, dtype=dtype)
+        # Smooth bounded delay: max_delay * sigmoid(raw_delay).
+        D_mid = self._bounded_delay(self.D_mid, device=device, dtype=dtype)
         t_min = torch.tensor(self.t_min, device=device, dtype=dtype)
         t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
         t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
@@ -1159,10 +1198,9 @@ class SpikingBlock(nn.Module):
                 torch.relu(self.pw2.weight)
                 if self.force_positive_weights else self.pw2.weight
             ).t().contiguous()
-            D_out = torch.clamp(
-                torch.relu(self.D_out),
-                max=0.9 * (self.t_max - self.t_min),
-            ).to(device=device, dtype=dtype)
+            D_out = self._bounded_delay(
+                self.D_out, device=device, dtype=dtype
+            )
             t_out = call_spiking_torch(
                 t_mid, W2, D_out, None, t_min, t_max
             )
@@ -1195,11 +1233,21 @@ class SpikingBlock(nn.Module):
 
 class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
-                 spike_dropout=0.0, pw2_mode="ttfs", **kwargs):
+                 spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
+                 stage_delays=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
-        # accept init_delay forwarded from model constructor
-        self.init_delay = kwargs.get('init_delay', 0.0)
+        self.init_delay = float(init_delay)
+        if stage_delays is None:
+            stage_delays = (self.init_delay,) * 4
+        if len(stage_delays) != 4:
+            raise ValueError("stage_delays must contain exactly four values")
+        self.stage_delays = tuple(float(delay) for delay in stage_delays)
+        max_delay = 0.9 * (float(t_max) - float(t_min))
+        if any(delay < 0.0 or delay > max_delay for delay in self.stage_delays):
+            raise ValueError(
+                f"Each stage delay must be in [0, {max_delay}]"
+            )
         # replace blocks in stages with SpikingBlock wrappers preserving weights
         for si, stage in enumerate(self.stages):
             new_blocks = []
@@ -1207,7 +1255,8 @@ class ConvNeXtSpiking(ConvNeXt):
                 spb = SpikingBlock(
                     b, t_min=t_min, t_max=t_max,
                     force_positive_weights=self.force_positive_weights,
-                    init_delay=self.init_delay, spike_dropout=spike_dropout,
+                    init_delay=self.stage_delays[si],
+                    spike_dropout=spike_dropout,
                     pw2_mode=pw2_mode
                 )
                 new_blocks.append(spb)

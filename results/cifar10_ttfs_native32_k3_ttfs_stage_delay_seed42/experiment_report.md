@@ -1,16 +1,16 @@
-# Experiment Report: Native32 TTFS pw1 Dense pw2
+# Experiment Report: cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | Native32 TTFS pw1 Dense pw2 |
-| Date Time | 2026-08-06T14:31:13+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_pw1_dense_pw2_seed42 |
-| Notes | One TTFS pointwise layer; dense score-domain pw2 |
+| Experiment Name | cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42 |
+| Date Time | 2026-08-06T15:00:06+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42 |
+| Notes | unknown |
 | Seed | 42 |
 | Status | running |
-| Updated At | 2026-08-06T14:59:53+03:30 |
+| Updated At | 2026-08-06T15:22:36+03:30 |
 
 ## Dataset
 
@@ -29,19 +29,23 @@
 
 | Field | Value |
 |---|---|
-| Dims | [96,192,384,512] |
-| Depths | [3,3,6,3] |
-| Parameter Count | 15733322 |
+| Dims | [96,192,384,768] |
+| Depths | [2,2,6,2] |
+| Parameter Count | 20840458 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
 | Depthwise Kernel Size | 3 |
+| Downsample Kernel | 3 |
+| Downsample Stride | 2 |
+| Downsample Padding | 1 |
 | Residual Operator | min |
 | Pw1 Mode | continuous TTFS |
-| Pw2 Mode | dense |
+| Pw2 Mode | ttfs |
 | Spike Dropout | 0.0 |
 | Delay Enabled | true |
-| Stage Delays | [0.4,0.0,0.0,0.0] |
+| Stage Delays | [0.05,0.02,0.01,0.01] |
+| Delay Parameterization | max_delay * sigmoid(raw_delay) |
 | T Min | 0.0 |
 | T Max | 1.0 |
 
@@ -63,14 +67,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 82 |
-| Best Validation Accuracy | 72.58 |
-| Final Train Accuracy | 62.92764772396427 |
-| Final Validation Accuracy | 72.58 |
+| Best Epoch | 65 |
+| Best Validation Accuracy | 84.9 |
+| Final Train Accuracy | 84.08200260430846 |
+| Final Validation Accuracy | 84.62 |
 | Test Accuracy | unknown |
 | Test Loss | unknown |
-| Training Time Seconds | 1719.9413788318634 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_pw1_dense_pw2_seed42\best_checkpoint.pth |
+| Training Time Seconds | 1297.7125103473663 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 
