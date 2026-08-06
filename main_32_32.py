@@ -164,7 +164,7 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=10, type=int,
+    parser.add_argument('--batch_size', default=150, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--update_freq', default=1, type=int,
@@ -412,7 +412,7 @@ def main(args):
                                 t_min=args.ttfs_tmin, t_max=args.ttfs_tmax)
         # If a checkpoint is provided via --finetune, load it into the spiking model now.
         # This mirrors the finetune handling below but does it early for the spiking branch.
-        if args.load_weights:
+        if args.load_weights :
             load_path = args.load_weights
             print("Requested to load weights from: %s" % load_path)
             # normalize and strip trailing separators
@@ -452,7 +452,7 @@ def main(args):
 
             utils.load_state_dict(model, checkpoint_model, prefix=args.model_prefix)
             # clear load_weights so downstream code does not attempt to reload
-            args.load_weights = ''
+            # args.load_weights = ''
 
     else:
         model = create_model(
