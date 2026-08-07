@@ -73,6 +73,7 @@ def args_parser():
         choices=("none", "score_layernorm"),
         default="none",
     )
+    parser.add_argument("--final_score_norm", type=str2bool, default=False)
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch_size", type=int, default=128)
@@ -91,6 +92,11 @@ def args_parser():
     parser.add_argument("--head_dropout", type=float, default=0.1)
     parser.add_argument("--spike_dropout", type=float, default=0.0)
     parser.add_argument("--mixup_alpha", type=float, default=0.2)
+    parser.add_argument("--cutmix_alpha", type=float, default=0.0)
+    parser.add_argument("--randaugment", type=str2bool, default=False)
+    parser.add_argument("--randaugment_num_ops", type=int, default=2)
+    parser.add_argument("--randaugment_magnitude", type=int, default=9)
+    parser.add_argument("--random_erasing", type=float, default=0.0)
     parser.add_argument("--early_stopping_patience", type=int, default=30)
     parser.add_argument("--dims", type=four_int_tuple, default="96,192,384,768")
     parser.add_argument("--depths", type=four_int_tuple, default="2,2,6,2")
@@ -111,6 +117,14 @@ def args_parser():
         parser.error("--drop_path must remain 0.0 for TTFS spike-time semantics")
     if args.mixup_alpha < 0.0:
         parser.error("--mixup_alpha must be non-negative")
+    if args.cutmix_alpha < 0.0:
+        parser.error("--cutmix_alpha must be non-negative")
+    if args.randaugment_num_ops < 1:
+        parser.error("--randaugment_num_ops must be at least 1")
+    if args.randaugment_magnitude < 0:
+        parser.error("--randaugment_magnitude must be non-negative")
+    if not 0.0 <= args.random_erasing <= 1.0:
+        parser.error("--random_erasing must be in [0,1]")
     if not 0.0 <= args.head_dropout < 1.0:
         parser.error("--head_dropout must be in [0,1)")
     if not 0.0 <= args.spike_dropout <= 1.0:
@@ -177,13 +191,21 @@ class ModelEMA:
 
 
 def build_loaders(args):
-    train_transform = transforms.Compose(
-        [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-        ]
-    )
+    train_transforms = [
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+    ]
+    if args.randaugment:
+        train_transforms.append(
+            transforms.RandAugment(
+                num_ops=args.randaugment_num_ops,
+                magnitude=args.randaugment_magnitude,
+            )
+        )
+    train_transforms.append(transforms.ToTensor())
+    if args.random_erasing > 0.0:
+        train_transforms.append(transforms.RandomErasing(p=args.random_erasing))
+    train_transform = transforms.Compose(train_transforms)
     eval_transform = transforms.ToTensor()
     train_dataset = datasets.CIFAR10(
         args.data_path, train=True, transform=train_transform, download=args.download
@@ -244,6 +266,7 @@ def make_model(args):
         spike_dropout=args.spike_dropout,
         pw2_mode=args.pw2_mode,
         ttfs_norm_mode=args.ttfs_norm_mode,
+        final_score_norm=args.final_score_norm,
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -269,6 +292,41 @@ def mixup_batch(images, labels, alpha):
     return mixed_images, labels, labels[permutation], lam
 
 
+def cutmix_batch(images, labels, alpha):
+    if images.min().item() < -1e-6 or images.max().item() > 1.0 + 1e-6:
+        raise ValueError("CutMix must receive raw images in [0,1]")
+    if alpha <= 0.0 or images.size(0) < 2:
+        return images, labels, labels, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    permutation = torch.randperm(images.size(0), device=images.device)
+    height, width = images.shape[-2:]
+    cut_ratio = math.sqrt(1.0 - lam)
+    cut_width = int(width * cut_ratio)
+    cut_height = int(height * cut_ratio)
+    center_x = random.randrange(width)
+    center_y = random.randrange(height)
+    x1 = max(center_x - cut_width // 2, 0)
+    x2 = min(center_x + cut_width // 2, width)
+    y1 = max(center_y - cut_height // 2, 0)
+    y2 = min(center_y + cut_height // 2, height)
+    mixed = images.clone()
+    mixed[:, :, y1:y2, x1:x2] = images[permutation, :, y1:y2, x1:x2]
+    lam = 1.0 - ((x2 - x1) * (y2 - y1) / float(width * height))
+    return mixed, labels, labels[permutation], lam
+
+
+def batch_mix(images, labels, args):
+    if args.mixup_alpha > 0.0 and args.cutmix_alpha > 0.0:
+        if random.getrandbits(1):
+            return mixup_batch(images, labels, args.mixup_alpha)
+        return cutmix_batch(images, labels, args.cutmix_alpha)
+    if args.mixup_alpha > 0.0:
+        return mixup_batch(images, labels, args.mixup_alpha)
+    if args.cutmix_alpha > 0.0:
+        return cutmix_batch(images, labels, args.cutmix_alpha)
+    return images, labels, labels, 1.0
+
+
 def lr_at(epoch, args):
     if epoch < args.warmup_epochs:
         return args.lr * (epoch + 1) / max(1, args.warmup_epochs)
@@ -289,6 +347,7 @@ def architecture_metadata(args):
         "depthwise_kernel_size": args.dw_kernel_size,
         "pw2_mode": args.pw2_mode,
         "ttfs_norm_mode": args.ttfs_norm_mode,
+        "final_score_norm": args.final_score_norm,
         "downsample_kernel_size": 3,
         "downsample_stride": 2,
         "downsample_padding": 1,
@@ -307,6 +366,9 @@ def architecture_metadata(args):
 def validate_resume_architecture(checkpoint, args):
     checkpoint_architecture = checkpoint.get("architecture")
     requested_architecture = architecture_metadata(args)
+    if checkpoint_architecture is not None:
+        checkpoint_architecture = dict(checkpoint_architecture)
+        checkpoint_architecture.setdefault("final_score_norm", False)
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
             "Resume checkpoint architecture does not match this run. "
@@ -395,11 +457,26 @@ def delay_gradient_diagnostic(model, args, device):
                             ),
                         }
                     )
+        final_norm_gradient_norms = []
+        if args.final_score_norm:
+            for parameter_name, parameter in model.final_norm.named_parameters():
+                if parameter.grad is None or not torch.isfinite(parameter.grad).all():
+                    raise RuntimeError(
+                        "Final LayerNorm received a missing or non-finite gradient: "
+                        f"{parameter_name}"
+                    )
+                final_norm_gradient_norms.append(
+                    {
+                        "parameter": parameter_name,
+                        "gradient_norm": float(parameter.grad.float().norm().item()),
+                    }
+                )
         return {
             "logits_shape": list(logits.shape),
             "logits_finite": True,
             "delay_gradient_norms": stage_norms,
             "layernorm_gradient_norms": norm_gradient_norms,
+            "final_layernorm_gradient_norms": final_norm_gradient_norms,
         }
     finally:
         model.zero_grad(set_to_none=True)
@@ -454,12 +531,16 @@ def create_experiment_report(
             "validation_sample_count": validation_sample_count,
             "test_sample_count": test_sample_count,
             "preprocessing": (
-                "ToTensor to raw [0,1], optional training Mixup, then "
-                "continuous TTFS encoding"
+                "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, "
+                "then continuous TTFS encoding"
             ),
             "augmentation": (
                 "training: RandomCrop(32,padding=4), RandomHorizontalFlip, "
-                f"Mixup(alpha={args.mixup_alpha}); validation/test: ToTensor only"
+                f"RandAugment(enabled={args.randaugment},ops="
+                f"{args.randaugment_num_ops},magnitude={args.randaugment_magnitude}), "
+                f"RandomErasing(p={args.random_erasing}), Mixup(alpha="
+                f"{args.mixup_alpha}), CutMix(alpha={args.cutmix_alpha}); "
+                "validation/test: ToTensor only"
             ),
         },
         "architecture": {
@@ -477,6 +558,7 @@ def create_experiment_report(
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
             "ttfs_norm_mode": args.ttfs_norm_mode,
+            "final_score_norm": args.final_score_norm,
             "spike_dropout": args.spike_dropout,
             "delay_enabled": delay_enabled,
             "stage_delays": stage_delays,
@@ -497,6 +579,11 @@ def create_experiment_report(
             "label_smoothing": args.label_smoothing,
             "head_dropout": args.head_dropout,
             "mixup_alpha": args.mixup_alpha,
+            "cutmix_alpha": args.cutmix_alpha,
+            "randaugment": args.randaugment,
+            "randaugment_num_ops": args.randaugment_num_ops,
+            "randaugment_magnitude": args.randaugment_magnitude,
+            "random_erasing": args.random_erasing,
             "early_stopping_patience": args.early_stopping_patience,
             "ema_enabled": args.ema,
             "ema_decay": args.ema_decay if args.ema else None,
@@ -544,10 +631,8 @@ def run_epoch(
         labels = labels.to(device, non_blocking=True)
 
         if training:
-            # Mixup is applied to raw images in [0,1], before TTFS encoding.
-            images, labels_a, labels_b, lam = mixup_batch(
-                images, labels, args.mixup_alpha
-            )
+            # Batch mixing remains on raw [0,1] tensors before TTFS encoding.
+            images, labels_a, labels_b, lam = batch_mix(images, labels, args)
             optimizer.zero_grad(set_to_none=True)
         else:
             # Validation and test follow this branch and never use Mixup.
@@ -701,6 +786,18 @@ def main():
         f"parameters={parameter_count:,}"
     )
     print(f"TTFS normalization mode: {args.ttfs_norm_mode}")
+    print(f"Final score normalization enabled: {args.final_score_norm}")
+    print(
+        "Augmentation settings:",
+        {
+            "randaugment": args.randaugment,
+            "randaugment_num_ops": args.randaugment_num_ops,
+            "randaugment_magnitude": args.randaugment_magnitude,
+            "mixup_alpha": args.mixup_alpha,
+            "cutmix_alpha": args.cutmix_alpha,
+            "random_erasing": args.random_erasing,
+        },
+    )
     measured_delays = actual_stage_delays(model)
     print("Actual stage delays:", measured_delays)
     smoke_test = delay_gradient_diagnostic(model, args, device)

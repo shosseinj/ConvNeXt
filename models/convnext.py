@@ -1250,7 +1250,8 @@ class SpikingBlock(nn.Module):
 class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
                  spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
-                 stage_delays=None, ttfs_norm_mode="none", **kwargs):
+                 stage_delays=None, ttfs_norm_mode="none",
+                 final_score_norm=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         self.init_delay = float(init_delay)
@@ -1283,6 +1284,10 @@ class ConvNeXtSpiking(ConvNeXt):
         # Keep self.head as-is but forward will convert spike-times to scores before head.
         self.t_min = float(t_min)
         self.t_max = float(t_max)
+        self.final_norm = (
+            nn.LayerNorm(self.head.in_features, eps=1e-6)
+            if final_score_norm else nn.Identity()
+        )
         # Dropout is applied only to dense scores, never to TTFS spike times.
         self.head_dropout = nn.Dropout(p=float(head_dropout))
 
@@ -1301,6 +1306,7 @@ class ConvNeXtSpiking(ConvNeXt):
         x_pool = self.forward_features(x_t)  # spike times per channel
         # convert times to scores: earlier spike -> higher score; simple mapping s = -t
         scores = -x_pool
+        scores = self.final_norm(scores)
         scores = self.head_dropout(scores)
         logits = self.head(scores)
         return logits
