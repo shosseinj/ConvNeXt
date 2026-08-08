@@ -1,11 +1,17 @@
 & 'C:\Users\jafari.h\Desktop\ai_project\.venv\Scripts\python.exe' `
   'C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\train_continuous_ttfs_cifar10_32x32_stem1.py' `
+  '--dataset' `
+  'cifar100' `
   '--data_path' `
   '..\cifar_data' `
+  '--download' `
+  'true' `
   '--output_dir' `
-  '.\results\cifar10\fully_ttfs\score_layernorm_final_norm_aug\seed_42\lr2e4' `
+  '.\results\cifar100\fully_ttfs\baseline\seed_42\lr2e4' `
   '--experiment_name' `
-  'cifar10_fully_ttfs_score_layernorm_final_norm_aug_seed42_lr2e4' `
+  'cifar100_fully_ttfs_baseline_seed42' `
+  '--experiment_notes' `
+  'Continuous fully TTFS ConvNeXt baseline on native CIFAR-100 32x32' `
   '--dims' `
   '96,192,384,768' `
   '--depths' `
@@ -14,40 +20,30 @@
   '3' `
   '--stage_delays' `
   '0.05,0.02,0.01,0.01' `
+  '--pw1_mode' `
+  'ttfs' `
   '--pw2_mode' `
   'ttfs' `
+  '--residual_operator' `
+  'min' `
   '--ttfs_norm_mode' `
   'score_layernorm' `
   '--final_score_norm' `
   'true' `
-  '--spike_dropout' `
-  '0' `
-  '--head_dropout' `
-  '0.1' `
-  '--drop_path' `
-  '0' `
-  '--t_min' `
-  '0' `
-  '--t_max' `
-  '1' `
   '--epochs' `
-  '250' `
+  '300' `
   '--batch_size' `
   '128' `
   '--lr' `
   '0.0002' `
   '--min_lr' `
-  '0.000001' `
+  '1e-6' `
   '--warmup_epochs' `
-  '5' `
+  '10' `
   '--lr_scheduler_patience' `
-  '4' `
+  '6' `
   '--lr_scheduler_factor' `
-  '0.85' `
-  '--early_stopping_patience' `
-  '25' `
-  '--early_stopping_min_delta' `
-  '0.05' `
+  '0.5' `
   '--weight_decay' `
   '0.05' `
   '--label_smoothing' `
@@ -64,9 +60,27 @@
   '9' `
   '--random_erasing' `
   '0.1' `
+  '--head_dropout' `
+  '0.1' `
+  '--spike_dropout' `
+  '0' `
+  '--drop_path' `
+  '0' `
+  '--t_min' `
+  '0' `
+  '--t_max' `
+  '1' `
   '--ema' `
   'true' `
   '--ema_decay' `
   '0.9998' `
+  '--early_stopping_patience' `
+  '30' `
+  '--early_stopping_min_delta' `
+  '0.02' `
+  '--seed' `
+  '42' `
+  '--amp' `
+  'true' `
   '--device' `
   'cuda'

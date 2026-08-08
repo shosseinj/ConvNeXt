@@ -52,9 +52,36 @@ def four_int_tuple(value):
     return parsed
 
 
+def dataset_name(value):
+    normalized = str(value).strip().lower().replace("-", "").replace("_", "")
+    aliases = {
+        "cifar10": "cifar10",
+        "cifar100": "cifar100",
+    }
+    if normalized not in aliases:
+        raise argparse.ArgumentTypeError("Dataset must be CIFAR-10 or CIFAR-100")
+    return aliases[normalized]
+
+
+def dataset_metadata(name):
+    if name == "cifar10":
+        return {
+            "display_name": "CIFAR-10",
+            "dataset_class": datasets.CIFAR10,
+            "num_classes": 10,
+        }
+    if name == "cifar100":
+        return {
+            "display_name": "CIFAR-100",
+            "dataset_class": datasets.CIFAR100,
+            "num_classes": 100,
+        }
+    raise ValueError(f"Unsupported dataset: {name}")
+
+
 def args_parser():
     parser = argparse.ArgumentParser(
-        "Continuous TTFS ConvNeXt on native CIFAR-10 32x32"
+        "Continuous TTFS ConvNeXt on native CIFAR 32x32 datasets"
     )
     parser.add_argument("--data_path", default="../cifar_data")
     parser.add_argument(
@@ -64,7 +91,7 @@ def args_parser():
     parser.add_argument("--resume", default="")
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
-    parser.add_argument("--dataset", default="CIFAR-10")
+    parser.add_argument("--dataset", type=dataset_name, default="cifar10")
     parser.add_argument("--residual_operator", default="min")
     parser.add_argument("--pw1_mode", default="continuous TTFS")
     parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="ttfs")
@@ -113,6 +140,9 @@ def args_parser():
     parser.add_argument("--val_size", type=int, default=5000)
     parser.add_argument("--print_freq", type=int, default=50)
     args = parser.parse_args()
+    selected_dataset = dataset_metadata(args.dataset)
+    args.dataset_display_name = selected_dataset["display_name"]
+    args.num_classes = selected_dataset["num_classes"]
     if args.drop_path != 0.0:
         parser.error("--drop_path must remain 0.0 for TTFS spike-time semantics")
     if args.mixup_alpha < 0.0:
@@ -207,13 +237,14 @@ def build_loaders(args):
         train_transforms.append(transforms.RandomErasing(p=args.random_erasing))
     train_transform = transforms.Compose(train_transforms)
     eval_transform = transforms.ToTensor()
-    train_dataset = datasets.CIFAR10(
+    dataset_class = dataset_metadata(args.dataset)["dataset_class"]
+    train_dataset = dataset_class(
         args.data_path, train=True, transform=train_transform, download=args.download
     )
-    validation_dataset = datasets.CIFAR10(
+    validation_dataset = dataset_class(
         args.data_path, train=True, transform=eval_transform, download=False
     )
-    test_dataset = datasets.CIFAR10(
+    test_dataset = dataset_class(
         args.data_path, train=False, transform=eval_transform, download=args.download
     )
     generator = torch.Generator().manual_seed(args.seed)
@@ -253,7 +284,7 @@ def make_model(args):
         raise ValueError("stage_delays must have 4 values")
     model = ConvNeXtSpiking(
         in_chans=3,
-        num_classes=10,
+        num_classes=args.num_classes,
         depths=args.depths,
         dims=args.dims,
         dw_kernel_size=args.dw_kernel_size,
@@ -341,6 +372,7 @@ def lr_at(epoch, args):
 
 def architecture_metadata(args):
     return {
+        "num_classes": args.num_classes,
         "dims": list(args.dims),
         "depths": list(args.depths),
         "input_resolution": [32, 32],
@@ -369,6 +401,7 @@ def validate_resume_architecture(checkpoint, args):
     if checkpoint_architecture is not None:
         checkpoint_architecture = dict(checkpoint_architecture)
         checkpoint_architecture.setdefault("final_score_norm", False)
+        checkpoint_architecture.setdefault("num_classes", 10)
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
             "Resume checkpoint architecture does not match this run. "
@@ -403,9 +436,10 @@ def delay_gradient_diagnostic(model, args, device):
         model.zero_grad(set_to_none=True)
         images = torch.rand(2, 3, 32, 32, device=device)
         logits = model(encode(images, args))
-        if logits.shape != (images.size(0), 10):
+        expected_logits_shape = (images.size(0), args.num_classes)
+        if logits.shape != expected_logits_shape:
             raise RuntimeError(
-                f"Diagnostic expected logits shape {(images.size(0), 10)}, "
+                f"Diagnostic expected logits shape {expected_logits_shape}, "
                 f"got {tuple(logits.shape)}"
             )
         if not torch.isfinite(logits).all():
@@ -524,8 +558,8 @@ def create_experiment_report(
             "updated_at": local_timestamp(),
         },
         "dataset": {
-            "dataset_name": args.dataset,
-            "number_of_classes": 10,
+            "dataset_name": args.dataset_display_name,
+            "number_of_classes": args.num_classes,
             "input_resolution": [32, 32],
             "train_sample_count": train_sample_count,
             "validation_sample_count": validation_sample_count,
@@ -780,7 +814,12 @@ def main():
         assert convolution.stride == (2, 2)
         assert convolution.padding == (1, 1)
     assert model.head.in_features == args.dims[-1]
+    assert model.head.out_features == args.num_classes
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
+    print(
+        f"Dataset: {args.dataset_display_name}, classes={args.num_classes}, "
+        "input_resolution=32x32"
+    )
     print(
         f"Architecture: dims={args.dims}, depths={args.depths}, "
         f"parameters={parameter_count:,}"
@@ -861,6 +900,12 @@ def main():
 
     config = {
         **vars(args),
+        "dataset_configuration": {
+            "name": args.dataset_display_name,
+            "canonical_name": args.dataset,
+            "number_of_classes": args.num_classes,
+            "input_resolution": [32, 32],
+        },
         "dims": list(args.dims),
         "depths": list(args.depths),
         "input_resolution": [32, 32],
