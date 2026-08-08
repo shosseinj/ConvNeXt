@@ -951,6 +951,95 @@ def call_spiking_torch(tj, W, D_i, t_min_prev, t_min, t_max):
     return ti
 
 
+class ContinuousTTFSConv2d(nn.Module):
+    """Continuous analytic TTFS mapping with Conv2d connectivity."""
+
+    def __init__(self, conv, t_min=0.0, t_max=1.0, init_delay=0.0,
+                 force_positive_weights=False):
+        super().__init__()
+        if not isinstance(conv, nn.Conv2d):
+            raise TypeError("ContinuousTTFSConv2d requires an nn.Conv2d")
+        self.conv = conv
+        self.t_min = float(t_min)
+        self.t_max = float(t_max)
+        self.force_positive_weights = bool(force_positive_weights)
+        self.max_delay = 0.9 * (self.t_max - self.t_min)
+        if self.max_delay <= 0.0:
+            raise ValueError("t_max must be greater than t_min")
+        ratio = float(init_delay) / self.max_delay
+        ratio = min(max(ratio, 1e-6), 1.0 - 1e-6)
+        raw_delay = float(torch.logit(torch.tensor(ratio)).item())
+        self.D_conv = nn.Parameter(
+            torch.full((conv.out_channels,), raw_delay)
+        )
+
+    @property
+    def in_channels(self):
+        return self.conv.in_channels
+
+    @property
+    def out_channels(self):
+        return self.conv.out_channels
+
+    @property
+    def kernel_size(self):
+        return self.conv.kernel_size
+
+    @property
+    def stride(self):
+        return self.conv.stride
+
+    @property
+    def padding(self):
+        return self.conv.padding
+
+    @property
+    def groups(self):
+        return self.conv.groups
+
+    def effective_delay_mean(self):
+        with torch.no_grad():
+            return float(
+                (self.max_delay * torch.sigmoid(self.D_conv)).mean().item()
+            )
+
+    def forward(self, tj):
+        if tj.ndim != 4:
+            raise ValueError("TTFS Conv2d expects an NCHW spike-time tensor")
+        dtype = tj.dtype
+        device = tj.device
+        t_min = torch.as_tensor(self.t_min, device=device, dtype=dtype)
+        t_max = torch.as_tensor(self.t_max, device=device, dtype=dtype)
+        delta = tj - t_min
+
+        # A padded location contains no event, represented by t_max rather than
+        # zero (which would incorrectly mean an earliest-possible spike).
+        pad_h, pad_w = self.conv.padding
+        if pad_h or pad_w:
+            delta = F.pad(
+                delta,
+                (pad_w, pad_w, pad_h, pad_h),
+                value=float(self.t_max - self.t_min),
+            )
+        weight = (
+            torch.relu(self.conv.weight)
+            if self.force_positive_weights else self.conv.weight
+        )
+        projected = F.conv2d(
+            delta,
+            weight,
+            bias=None,
+            stride=self.conv.stride,
+            padding=0,
+            dilation=self.conv.dilation,
+            groups=self.conv.groups,
+        )
+        delay = self.max_delay * torch.sigmoid(self.D_conv)
+        threshold = (t_max - t_min) - delay.to(device=device, dtype=dtype)
+        ti = projected + threshold.view(1, -1, 1, 1) + t_min
+        return torch.where(ti < t_max, ti, t_max)
+
+
 class Block(nn.Module):
     r""" ConvNeXt Block. There are two equivalent implementations:
     (1) DwConv -> LayerNorm (channels_first) -> 1x1 Conv -> GELU -> 1x1 Conv; all in (N, C, H, W)
@@ -1100,10 +1189,22 @@ class SpikingBlock(nn.Module):
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
                  spike_dropout: float = 0.0, pw2_mode: str = "ttfs",
-                 ttfs_norm_mode: str = "none"):
+                 ttfs_norm_mode: str = "none", dwconv_mode: str = "dense"):
         super().__init__()
         # reuse modules (share weights)
-        self.dwconv = orig_block.dwconv
+        self.dwconv_mode = str(dwconv_mode).strip().lower()
+        if self.dwconv_mode not in {"dense", "ttfs"}:
+            raise ValueError("dwconv_mode must be 'dense' or 'ttfs'")
+        self.dwconv = (
+            ContinuousTTFSConv2d(
+                orig_block.dwconv,
+                t_min=t_min,
+                t_max=t_max,
+                init_delay=init_delay,
+                force_positive_weights=force_positive_weights,
+            )
+            if self.dwconv_mode == "ttfs" else orig_block.dwconv
+        )
         self.pw1 = orig_block.pwconv1
         self.pw2 = orig_block.pwconv2
         self.force_positive_weights = force_positive_weights
@@ -1182,7 +1283,8 @@ class SpikingBlock(nn.Module):
     def forward(self, tj):
         # tj: spike times tensor (N, C, H, W)
         x = tj
-        # depthwise conv: apply to the spike-time map (heuristic)
+        # Depthwise operation is either the legacy dense time-map convolution
+        # or a continuous analytic TTFS convolution with identical connectivity.
         x = self.dwconv(x)
 
         # prepare for pointwise linear mapping per spatial location
@@ -1251,7 +1353,8 @@ class ConvNeXtSpiking(ConvNeXt):
     def __init__(self, *args, t_min=0.0, t_max=1.0, head_dropout=0.0,
                  spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
                  stage_delays=None, ttfs_norm_mode="none",
-                 final_score_norm=False, **kwargs):
+                 final_score_norm=False, downsample_mode="dense",
+                 dwconv_mode="dense", **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         self.init_delay = float(init_delay)
@@ -1260,11 +1363,29 @@ class ConvNeXtSpiking(ConvNeXt):
         if len(stage_delays) != 4:
             raise ValueError("stage_delays must contain exactly four values")
         self.stage_delays = tuple(float(delay) for delay in stage_delays)
+        self.downsample_mode = str(downsample_mode).strip().lower()
+        self.dwconv_mode = str(dwconv_mode).strip().lower()
+        if self.downsample_mode not in {"dense", "ttfs"}:
+            raise ValueError("downsample_mode must be 'dense' or 'ttfs'")
+        if self.dwconv_mode not in {"dense", "ttfs"}:
+            raise ValueError("dwconv_mode must be 'dense' or 'ttfs'")
         max_delay = 0.9 * (float(t_max) - float(t_min))
         if any(delay < 0.0 or delay > max_delay for delay in self.stage_delays):
             raise ValueError(
                 f"Each stage delay must be in [0, {max_delay}]"
             )
+        if self.downsample_mode == "ttfs":
+            for stage_index in range(1, 4):
+                dense_conv = self.downsample_layers[stage_index][0]
+                self.downsample_layers[stage_index] = nn.Sequential(
+                    ContinuousTTFSConv2d(
+                        dense_conv,
+                        t_min=t_min,
+                        t_max=t_max,
+                        init_delay=self.stage_delays[stage_index],
+                        force_positive_weights=self.force_positive_weights,
+                    )
+                )
         # replace blocks in stages with SpikingBlock wrappers preserving weights
         for si, stage in enumerate(self.stages):
             new_blocks = []
@@ -1276,6 +1397,7 @@ class ConvNeXtSpiking(ConvNeXt):
                     spike_dropout=spike_dropout,
                     pw2_mode=pw2_mode,
                     ttfs_norm_mode=ttfs_norm_mode,
+                    dwconv_mode=self.dwconv_mode,
                 )
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)

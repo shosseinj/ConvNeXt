@@ -58,6 +58,12 @@ def parse_args():
     parser.add_argument("--amp", type=str2bool, default=True)
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument(
+        "--save_confusion_matrix",
+        type=str2bool,
+        default=True,
+        help="Save confusion-matrix CSV/PNG files and values in JSON.",
+    )
+    parser.add_argument(
         "--weights_source", choices=("auto", "ema", "model"), default="auto"
     )
     parser.add_argument(
@@ -112,6 +118,8 @@ def build_model(checkpoint):
         pw2_mode=architecture.get("pw2_mode", "ttfs"),
         ttfs_norm_mode=architecture.get("ttfs_norm_mode", "none"),
         final_score_norm=bool(architecture.get("final_score_norm", False)),
+        dwconv_mode=architecture.get("dwconv_mode", "dense"),
+        downsample_mode=architecture.get("downsample_mode", "dense"),
         force_positive_weights=bool(
             saved_args.get("force_positive_weights", False)
         ),
@@ -183,14 +191,20 @@ def make_views(images, mode):
 
 
 @torch.inference_mode()
-def evaluate(models, loader, mode, device, amp, t_min, t_max, class_names):
+def evaluate(
+    models, loader, mode, device, amp, t_min, t_max, class_names,
+    save_confusion_matrix_values,
+):
     num_classes = len(class_names)
     total = 0
     correct = 0
     loss_sum = 0.0
     per_class_total = torch.zeros(num_classes, dtype=torch.long)
     per_class_correct = torch.zeros(num_classes, dtype=torch.long)
-    confusion_matrix = torch.zeros((num_classes, num_classes), dtype=torch.long)
+    confusion_matrix = (
+        torch.zeros((num_classes, num_classes), dtype=torch.long)
+        if save_confusion_matrix_values else None
+    )
     started = time.time()
     view_count = None
 
@@ -216,11 +230,12 @@ def evaluate(models, loader, mode, device, amp, t_min, t_max, class_names):
         loss = F.cross_entropy(averaged_logits.float(), labels)
         predictions = averaged_logits.argmax(dim=1)
         matches = predictions.eq(labels)
-        batch_confusion = torch.bincount(
-            (labels * num_classes + predictions).detach().cpu(),
-            minlength=num_classes * num_classes,
-        ).reshape(num_classes, num_classes)
-        confusion_matrix += batch_confusion
+        if confusion_matrix is not None:
+            batch_confusion = torch.bincount(
+                (labels * num_classes + predictions).detach().cpu(),
+                minlength=num_classes * num_classes,
+            ).reshape(num_classes, num_classes)
+            confusion_matrix += batch_confusion
         total += labels.numel()
         correct += matches.sum().item()
         loss_sum += loss.item() * labels.numel()
@@ -229,7 +244,7 @@ def evaluate(models, loader, mode, device, amp, t_min, t_max, class_names):
             per_class_total[class_index] += class_mask.sum().cpu()
             per_class_correct[class_index] += (matches & class_mask).sum().cpu()
 
-    return {
+    result = {
         "mode": mode,
         "models": len(models),
         "views_per_model": view_count,
@@ -245,8 +260,10 @@ def evaluate(models, loader, mode, device, amp, t_min, t_max, class_names):
             / max(per_class_total[index].item(), 1)
             for index in range(num_classes)
         },
-        "confusion_matrix": confusion_matrix.tolist(),
     }
+    if confusion_matrix is not None:
+        result["confusion_matrix"] = confusion_matrix.tolist()
+    return result
 
 
 def save_confusion_matrix(output_dir, result, class_names, dataset_display_name):
@@ -409,12 +426,21 @@ def main():
     results = []
     for mode in args.tta_modes:
         metrics = evaluate(
-            models, loader, mode, device, args.amp, t_min, t_max, class_names
+            models,
+            loader,
+            mode,
+            device,
+            args.amp,
+            t_min,
+            t_max,
+            class_names,
+            args.save_confusion_matrix,
         )
         results.append(metrics)
-        save_confusion_matrix(
-            output_dir, metrics, class_names, dataset_display_name
-        )
+        if args.save_confusion_matrix:
+            save_confusion_matrix(
+                output_dir, metrics, class_names, dataset_display_name
+            )
         print(json.dumps(metrics, indent=2), flush=True)
 
     report = {

@@ -128,6 +128,12 @@ def args_parser():
     parser.add_argument("--dims", type=four_int_tuple, default="96,192,384,768")
     parser.add_argument("--depths", type=four_int_tuple, default="2,2,6,2")
     parser.add_argument("--dw_kernel_size", type=int, choices=(3, 5, 7), default=3)
+    parser.add_argument(
+        "--dwconv_mode", choices=("dense", "ttfs"), default="ttfs"
+    )
+    parser.add_argument(
+        "--downsample_mode", choices=("dense", "ttfs"), default="ttfs"
+    )
     parser.add_argument("--grad_clip", type=float, default=5.0)
     parser.add_argument("--drop_path", type=float, default=0.0)
     parser.add_argument("--t_min", type=float, default=0.0)
@@ -298,6 +304,8 @@ def make_model(args):
         pw2_mode=args.pw2_mode,
         ttfs_norm_mode=args.ttfs_norm_mode,
         final_score_norm=args.final_score_norm,
+        dwconv_mode=args.dwconv_mode,
+        downsample_mode=args.downsample_mode,
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -377,6 +385,8 @@ def architecture_metadata(args):
         "depths": list(args.depths),
         "input_resolution": [32, 32],
         "depthwise_kernel_size": args.dw_kernel_size,
+        "dwconv_mode": args.dwconv_mode,
+        "downsample_mode": args.downsample_mode,
         "pw2_mode": args.pw2_mode,
         "ttfs_norm_mode": args.ttfs_norm_mode,
         "final_score_norm": args.final_score_norm,
@@ -402,6 +412,8 @@ def validate_resume_architecture(checkpoint, args):
         checkpoint_architecture = dict(checkpoint_architecture)
         checkpoint_architecture.setdefault("final_score_norm", False)
         checkpoint_architecture.setdefault("num_classes", 10)
+        checkpoint_architecture.setdefault("dwconv_mode", "dense")
+        checkpoint_architecture.setdefault("downsample_mode", "dense")
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
             "Resume checkpoint architecture does not match this run. "
@@ -505,12 +517,33 @@ def delay_gradient_diagnostic(model, args, device):
                         "gradient_norm": float(parameter.grad.float().norm().item()),
                     }
                 )
+        convolution_delay_gradient_norms = []
+        for module_name, module in model.named_modules():
+            if module.__class__.__name__ != "ContinuousTTFSConv2d":
+                continue
+            if module.D_conv.grad is None:
+                raise RuntimeError(
+                    f"Missing TTFS convolution delay gradient: {module_name}"
+                )
+            if not torch.isfinite(module.D_conv.grad).all():
+                raise RuntimeError(
+                    f"Non-finite TTFS convolution delay gradient: {module_name}"
+                )
+            convolution_delay_gradient_norms.append(
+                {
+                    "module": module_name,
+                    "gradient_norm": float(module.D_conv.grad.float().norm().item()),
+                    "effective_delay": module.effective_delay_mean(),
+                    "groups": module.groups,
+                }
+            )
         return {
             "logits_shape": list(logits.shape),
             "logits_finite": True,
             "delay_gradient_norms": stage_norms,
             "layernorm_gradient_norms": norm_gradient_norms,
             "final_layernorm_gradient_norms": final_norm_gradient_norms,
+            "convolution_delay_gradient_norms": convolution_delay_gradient_norms,
         }
     finally:
         model.zero_grad(set_to_none=True)
@@ -585,9 +618,11 @@ def create_experiment_report(
             "stem_stride": 1,
             "stem_padding": 1,
             "depthwise_kernel_size": args.dw_kernel_size,
+            "depthwise_mode": args.dwconv_mode,
             "downsample_kernel": 3,
             "downsample_stride": 2,
             "downsample_padding": 1,
+            "downsample_mode": args.downsample_mode,
             "residual_operator": args.residual_operator,
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
@@ -825,6 +860,8 @@ def main():
         f"parameters={parameter_count:,}"
     )
     print(f"TTFS normalization mode: {args.ttfs_norm_mode}")
+    print(f"Depthwise convolution mode: {args.dwconv_mode}")
+    print(f"Downsampling convolution mode: {args.downsample_mode}")
     print(f"Final score normalization enabled: {args.final_score_norm}")
     print(
         "Augmentation settings:",
@@ -918,10 +955,12 @@ def main():
         },
         "spatial_schedule": [32, 32, 16, 8, 4],
         "depthwise_kernel_size": args.dw_kernel_size,
+        "depthwise_mode": args.dwconv_mode,
         "downsampling": {
             "kernel_size": 3,
             "stride": 2,
             "padding": 1,
+            "mode": args.downsample_mode,
         },
         "actual_stage_delays": measured_delays,
         "delay_parameterization": "max_delay * sigmoid(raw_delay)",

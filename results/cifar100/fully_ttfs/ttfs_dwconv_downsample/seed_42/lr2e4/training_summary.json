@@ -1,0 +1,16 @@
+{
+  "best_epoch": 190,
+  "last_epoch": 220,
+  "best_validation_accuracy": 74.04,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.6548862497329713,
+    "accuracy": 73.03,
+    "samples": 10000,
+    "seconds": 13.571576595306396
+  },
+  "best_checkpoint": "results\\cifar100\\fully_ttfs\\ttfs_dwconv_downsample\\seed_42\\lr2e4\\best_checkpoint.pth",
+  "last_checkpoint": "results\\cifar100\\fully_ttfs\\ttfs_dwconv_downsample\\seed_42\\lr2e4\\last_checkpoint.pth"
+}
