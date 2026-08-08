@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate continuous TTFS ConvNeXt with EMA, TTA, and optional ensembling."""
+"""Evaluate continuous TTFS ConvNeXt on CIFAR-10/100 with EMA and TTA."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def str2bool(value):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        "Evaluate continuous TTFS ConvNeXt on CIFAR-10 with TTA"
+        "Evaluate continuous TTFS ConvNeXt on CIFAR-10/100 with TTA"
     )
     parser.add_argument(
         "--checkpoint",
@@ -45,6 +45,12 @@ def parse_args():
         help="Checkpoint path; repeat this argument for a model ensemble.",
     )
     parser.add_argument("--data_path", default="../cifar_data")
+    parser.add_argument(
+        "--dataset",
+        choices=("auto", "cifar10", "cifar100"),
+        default="auto",
+        help="Infer from checkpoint metadata by default.",
+    )
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--num_workers", type=int, default=4)
@@ -85,9 +91,12 @@ def build_model(checkpoint):
     saved_args = checkpoint.get("args", {})
     dims = tuple(int(value) for value in architecture["dims"])
     depths = tuple(int(value) for value in architecture["depths"])
+    num_classes = int(
+        architecture.get("num_classes", saved_args.get("num_classes", 10))
+    )
     model = ConvNeXtSpiking(
         in_chans=3,
-        num_classes=10,
+        num_classes=num_classes,
         depths=depths,
         dims=dims,
         dw_kernel_size=int(architecture["depthwise_kernel_size"]),
@@ -109,6 +118,7 @@ def build_model(checkpoint):
         init_delay=float(saved_args.get("init_delay", 0.0)),
         stage_delays=tuple(float(value) for value in architecture["stage_delays"]),
     )
+    architecture["num_classes"] = num_classes
     return model, architecture
 
 
@@ -173,13 +183,14 @@ def make_views(images, mode):
 
 
 @torch.inference_mode()
-def evaluate(models, loader, mode, device, amp, t_min, t_max):
+def evaluate(models, loader, mode, device, amp, t_min, t_max, class_names):
+    num_classes = len(class_names)
     total = 0
     correct = 0
     loss_sum = 0.0
-    per_class_total = torch.zeros(10, dtype=torch.long)
-    per_class_correct = torch.zeros(10, dtype=torch.long)
-    confusion_matrix = torch.zeros((10, 10), dtype=torch.long)
+    per_class_total = torch.zeros(num_classes, dtype=torch.long)
+    per_class_correct = torch.zeros(num_classes, dtype=torch.long)
+    confusion_matrix = torch.zeros((num_classes, num_classes), dtype=torch.long)
     started = time.time()
     view_count = None
 
@@ -206,13 +217,14 @@ def evaluate(models, loader, mode, device, amp, t_min, t_max):
         predictions = averaged_logits.argmax(dim=1)
         matches = predictions.eq(labels)
         batch_confusion = torch.bincount(
-            (labels * 10 + predictions).detach().cpu(), minlength=100
-        ).reshape(10, 10)
+            (labels * num_classes + predictions).detach().cpu(),
+            minlength=num_classes * num_classes,
+        ).reshape(num_classes, num_classes)
         confusion_matrix += batch_confusion
         total += labels.numel()
         correct += matches.sum().item()
         loss_sum += loss.item() * labels.numel()
-        for class_index in range(10):
+        for class_index in range(num_classes):
             class_mask = labels.eq(class_index)
             per_class_total[class_index] += class_mask.sum().cpu()
             per_class_correct[class_index] += (matches & class_mask).sum().cpu()
@@ -228,56 +240,61 @@ def evaluate(models, loader, mode, device, amp, t_min, t_max):
         "samples": total,
         "seconds": time.time() - started,
         "per_class_accuracy": {
-            CIFAR10_CLASSES[index]: 100.0
+            class_names[index]: 100.0
             * per_class_correct[index].item()
             / max(per_class_total[index].item(), 1)
-            for index in range(10)
+            for index in range(num_classes)
         },
         "confusion_matrix": confusion_matrix.tolist(),
     }
 
 
-def save_confusion_matrix(output_dir, result):
+def save_confusion_matrix(output_dir, result, class_names, dataset_display_name):
     mode = result["mode"]
     matrix = result["confusion_matrix"]
     csv_path = output_dir / f"confusion_matrix_{mode}.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["actual/predicted", *CIFAR10_CLASSES])
-        for class_name, row in zip(CIFAR10_CLASSES, matrix):
+        writer.writerow(["actual/predicted", *class_names])
+        for class_name, row in zip(class_names, matrix):
             writer.writerow([class_name, *row])
 
     try:
         import matplotlib.pyplot as plt
 
-        figure, axis = plt.subplots(figsize=(10, 9))
+        num_classes = len(class_names)
+        figure_size = (24, 22) if num_classes > 20 else (10, 9)
+        figure, axis = plt.subplots(figsize=figure_size)
         image = axis.imshow(matrix, interpolation="nearest", cmap="Blues")
         figure.colorbar(image, ax=axis, fraction=0.046, pad=0.04)
         axis.set(
-            xticks=range(10),
-            yticks=range(10),
-            xticklabels=CIFAR10_CLASSES,
-            yticklabels=CIFAR10_CLASSES,
+            xticks=range(num_classes),
+            yticks=range(num_classes),
+            xticklabels=class_names,
+            yticklabels=class_names,
             xlabel="Predicted class",
             ylabel="Actual class",
             title=(
-                f"CIFAR-10 confusion matrix: {mode} "
+                f"{dataset_display_name} confusion matrix: {mode} "
                 f"({result['accuracy']:.2f}% accuracy)"
             ),
         )
         plt.setp(axis.get_xticklabels(), rotation=45, ha="right")
-        threshold = max(max(row) for row in matrix) / 2.0
-        for row_index, row in enumerate(matrix):
-            for column_index, value in enumerate(row):
-                axis.text(
-                    column_index,
-                    row_index,
-                    str(value),
-                    ha="center",
-                    va="center",
-                    color="white" if value > threshold else "black",
-                    fontsize=8,
-                )
+        if num_classes <= 20:
+            threshold = max(max(row) for row in matrix) / 2.0
+            for row_index, row in enumerate(matrix):
+                for column_index, value in enumerate(row):
+                    axis.text(
+                        column_index,
+                        row_index,
+                        str(value),
+                        ha="center",
+                        va="center",
+                        color="white" if value > threshold else "black",
+                        fontsize=8,
+                    )
+        else:
+            axis.tick_params(axis="both", labelsize=5)
         figure.tight_layout()
         figure.savefig(
             output_dir / f"confusion_matrix_{mode}.png",
@@ -363,12 +380,24 @@ def main():
             }
         )
 
-    dataset = datasets.CIFAR10(
+    checkpoint_num_classes = int(reference_architecture["num_classes"])
+    inferred_dataset = "cifar100" if checkpoint_num_classes == 100 else "cifar10"
+    dataset_name = inferred_dataset if args.dataset == "auto" else args.dataset
+    expected_classes = 100 if dataset_name == "cifar100" else 10
+    if checkpoint_num_classes != expected_classes:
+        raise RuntimeError(
+            f"Checkpoint has {checkpoint_num_classes} output classes, but "
+            f"--dataset {dataset_name} requires {expected_classes}"
+        )
+    dataset_class = datasets.CIFAR100 if dataset_name == "cifar100" else datasets.CIFAR10
+    dataset_display_name = "CIFAR-100" if dataset_name == "cifar100" else "CIFAR-10"
+    dataset = dataset_class(
         root=args.data_path,
         train=False,
         transform=transforms.ToTensor(),
         download=args.download,
     )
+    class_names = tuple(dataset.classes)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -380,14 +409,16 @@ def main():
     results = []
     for mode in args.tta_modes:
         metrics = evaluate(
-            models, loader, mode, device, args.amp, t_min, t_max
+            models, loader, mode, device, args.amp, t_min, t_max, class_names
         )
         results.append(metrics)
-        save_confusion_matrix(output_dir, metrics)
+        save_confusion_matrix(
+            output_dir, metrics, class_names, dataset_display_name
+        )
         print(json.dumps(metrics, indent=2), flush=True)
 
     report = {
-        "dataset": "CIFAR-10 test",
+        "dataset": f"{dataset_display_name} test",
         "device": str(device),
         "amp": args.amp,
         "checkpoints": checkpoint_reports,
