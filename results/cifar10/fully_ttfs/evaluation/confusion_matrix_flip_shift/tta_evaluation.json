@@ -1,0 +1,210 @@
+{
+  "dataset": "CIFAR-10 test",
+  "device": "cuda",
+  "amp": true,
+  "checkpoints": [
+    {
+      "path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\fully_ttfs\\clean_finetune_from_94_36\\seed_42\\preserved_best_94_40\\best_checkpoint.pth",
+      "weights_source": "ema",
+      "best_validation_accuracy": 94.4,
+      "best_epoch": 234,
+      "integrity": {
+        "missing_keys": [],
+        "unexpected_keys": [],
+        "shape_mismatches": []
+      }
+    }
+  ],
+  "architecture": {
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "input_resolution": [
+      32,
+      32
+    ],
+    "depthwise_kernel_size": 3,
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "downsample_kernel_size": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "stem": {
+      "in_channels": 3,
+      "out_channels": 96,
+      "kernel_size": 3,
+      "stride": 1,
+      "padding": 1
+    }
+  },
+  "ttfs_time_range": [
+    0.0,
+    1.0
+  ],
+  "results": [
+    {
+      "mode": "flip_shift",
+      "models": 1,
+      "views_per_model": 10,
+      "forward_passes_per_sample": 10,
+      "loss": 0.28838786573410036,
+      "accuracy": 94.35,
+      "correct": 9435,
+      "samples": 10000,
+      "seconds": 28.93856406211853,
+      "per_class_accuracy": {
+        "airplane": 95.8,
+        "automobile": 98.2,
+        "bird": 92.0,
+        "cat": 86.2,
+        "deer": 95.4,
+        "dog": 89.2,
+        "frog": 96.9,
+        "horse": 96.4,
+        "ship": 97.4,
+        "truck": 96.0
+      },
+      "confusion_matrix": [
+        [
+          958,
+          3,
+          8,
+          5,
+          2,
+          0,
+          1,
+          1,
+          13,
+          9
+        ],
+        [
+          2,
+          982,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          14
+        ],
+        [
+          15,
+          0,
+          920,
+          16,
+          19,
+          10,
+          16,
+          3,
+          1,
+          0
+        ],
+        [
+          3,
+          2,
+          18,
+          862,
+          18,
+          71,
+          13,
+          7,
+          5,
+          1
+        ],
+        [
+          0,
+          1,
+          9,
+          9,
+          954,
+          6,
+          10,
+          11,
+          0,
+          0
+        ],
+        [
+          2,
+          2,
+          12,
+          71,
+          13,
+          892,
+          3,
+          4,
+          0,
+          1
+        ],
+        [
+          4,
+          1,
+          12,
+          8,
+          5,
+          1,
+          969,
+          0,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          7,
+          8,
+          7,
+          10,
+          0,
+          964,
+          1,
+          0
+        ],
+        [
+          14,
+          2,
+          3,
+          2,
+          0,
+          0,
+          1,
+          0,
+          974,
+          4
+        ],
+        [
+          2,
+          26,
+          1,
+          2,
+          0,
+          1,
+          0,
+          1,
+          7,
+          960
+        ]
+      ]
+    }
+  ],
+  "best_reported_mode": "flip_shift",
+  "note": "Report all predeclared TTA modes. Selecting a TTA recipe after seeing test labels is not a training improvement."
+}
