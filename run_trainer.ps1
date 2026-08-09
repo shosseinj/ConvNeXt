@@ -1,7 +1,7 @@
 $seed = 7777
-$experiment_name = "downsample_ttfs_dwconv_ttfs"
+$experiment_name = "downsample_dense_dwconv_ttfs"
 $dataset = "cifar10"
-$downsample_mode = "ttfs"
+$downsample_mode = "dense"
 $dwconv_mode = "ttfs"
 
 python `

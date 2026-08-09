@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_ttfs_dwconv_ttfs\\seed_7777",
     "notes": "Analytic TTFS depthwise and downsampling convolutions",
     "seed": 7777,
-    "status": "running",
-    "updated_at": "2026-08-09T10:29:17+03:30"
+    "status": "early_stopped",
+    "updated_at": "2026-08-09T11:56:02+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -84,13 +84,13 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 0,
-    "best_validation_accuracy": 8.5,
-    "final_train_accuracy": 13.14651695088395,
-    "final_validation_accuracy": 8.5,
-    "test_accuracy": null,
-    "test_loss": null,
-    "training_time_seconds": 109.3012285232544,
+    "best_epoch": 176,
+    "best_validation_accuracy": 93.88,
+    "final_train_accuracy": 77.30899110903533,
+    "final_validation_accuracy": 93.52,
+    "test_accuracy": 93.38,
+    "test_loss": 0.6617035701751709,
+    "training_time_seconds": 5314.734993696213,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_ttfs_dwconv_ttfs\\seed_7777\\best_checkpoint.pth"
   },
   "optional_evaluation": {

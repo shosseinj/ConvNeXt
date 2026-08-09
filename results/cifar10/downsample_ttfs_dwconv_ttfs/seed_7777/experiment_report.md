@@ -9,8 +9,8 @@
 | Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\downsample_ttfs_dwconv_ttfs\seed_7777 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
 | Seed | 7777 |
-| Status | running |
-| Updated At | 2026-08-09T10:29:17+03:30 |
+| Status | early_stopped |
+| Updated At | 2026-08-09T11:56:02+03:30 |
 
 ## Dataset
 
@@ -82,13 +82,13 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 0 |
-| Best Validation Accuracy | 8.5 |
-| Final Train Accuracy | 13.14651695088395 |
-| Final Validation Accuracy | 8.5 |
-| Test Accuracy | unknown |
-| Test Loss | unknown |
-| Training Time Seconds | 109.3012285232544 |
+| Best Epoch | 176 |
+| Best Validation Accuracy | 93.88 |
+| Final Train Accuracy | 77.30899110903533 |
+| Final Validation Accuracy | 93.52 |
+| Test Accuracy | 93.38 |
+| Test Loss | 0.6617035701751709 |
+| Training Time Seconds | 5314.734993696213 |
 | Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\downsample_ttfs_dwconv_ttfs\seed_7777\best_checkpoint.pth |
 
 ## Optional Evaluation Results
