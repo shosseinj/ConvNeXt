@@ -79,15 +79,33 @@ def dataset_metadata(name):
     raise ValueError(f"Unsupported dataset: {name}")
 
 
+def resolve_experiment_identity(dataset, experiment_name, seed, output_dir):
+    base_name = str(experiment_name).strip()
+    if (
+        not base_name
+        or base_name in {".", ".."}
+        or "/" in base_name
+        or "\\" in base_name
+        or Path(base_name).is_absolute()
+    ):
+        raise ValueError(
+            "--experiment_name must be a non-empty base name without path separators"
+        )
+
+    full_name = f"{dataset}_{base_name}_seed{seed}"
+    requested_output_dir = str(output_dir).strip()
+    resolved_output_dir = requested_output_dir or (
+        Path("results") / dataset / base_name / f"seed_{seed}"
+    ).as_posix()
+    return full_name, resolved_output_dir
+
+
 def args_parser():
     parser = argparse.ArgumentParser(
         "Continuous TTFS ConvNeXt on native CIFAR 32x32 datasets"
     )
     parser.add_argument("--data_path", default="../cifar_data")
-    parser.add_argument(
-        "--output_dir",
-        default="results/cifar10_ttfs_native32_k3_ttfs_stage_delay_seed42",
-    )
+    parser.add_argument("--output_dir", default="")
     parser.add_argument("--resume", default="")
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
@@ -149,6 +167,15 @@ def args_parser():
     selected_dataset = dataset_metadata(args.dataset)
     args.dataset_display_name = selected_dataset["display_name"]
     args.num_classes = selected_dataset["num_classes"]
+    try:
+        args.experiment_name, args.output_dir = resolve_experiment_identity(
+            dataset=args.dataset,
+            experiment_name=args.experiment_name,
+            seed=args.seed,
+            output_dir=args.output_dir,
+        )
+    except ValueError as error:
+        parser.error(str(error))
     if args.drop_path != 0.0:
         parser.error("--drop_path must remain 0.0 for TTFS spike-time semantics")
     if args.mixup_alpha < 0.0:

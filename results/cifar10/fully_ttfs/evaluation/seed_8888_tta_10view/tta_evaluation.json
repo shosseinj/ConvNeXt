@@ -1,0 +1,503 @@
+{
+  "dataset": "CIFAR-10 test",
+  "device": "cuda",
+  "amp": true,
+  "checkpoints": [
+    {
+      "path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\fully_ttfs\\ttfs_dwconv_downsample\\seed_8888\\lr2e4\\best_checkpoint.pth",
+      "weights_source": "ema",
+      "best_validation_accuracy": 93.72,
+      "best_epoch": 158,
+      "integrity": {
+        "missing_keys": [],
+        "unexpected_keys": [],
+        "shape_mismatches": []
+      }
+    }
+  ],
+  "architecture": {
+    "num_classes": 10,
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "input_resolution": [
+      32,
+      32
+    ],
+    "depthwise_kernel_size": 3,
+    "dwconv_mode": "ttfs",
+    "downsample_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "downsample_kernel_size": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "stem": {
+      "in_channels": 3,
+      "out_channels": 96,
+      "kernel_size": 3,
+      "stride": 1,
+      "padding": 1
+    }
+  },
+  "ttfs_time_range": [
+    0.0,
+    1.0
+  ],
+  "results": [
+    {
+      "mode": "none",
+      "models": 1,
+      "views_per_model": 1,
+      "forward_passes_per_sample": 1,
+      "loss": 0.3130643120288849,
+      "accuracy": 93.23,
+      "correct": 9323,
+      "samples": 10000,
+      "seconds": 13.017032623291016,
+      "per_class_accuracy": {
+        "airplane": 94.5,
+        "automobile": 97.0,
+        "bird": 91.8,
+        "cat": 82.7,
+        "deer": 93.3,
+        "dog": 88.5,
+        "frog": 95.9,
+        "horse": 95.2,
+        "ship": 97.5,
+        "truck": 95.9
+      },
+      "confusion_matrix": [
+        [
+          945,
+          3,
+          13,
+          6,
+          1,
+          0,
+          3,
+          2,
+          20,
+          7
+        ],
+        [
+          4,
+          970,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          4,
+          20
+        ],
+        [
+          16,
+          0,
+          918,
+          17,
+          18,
+          6,
+          17,
+          7,
+          1,
+          0
+        ],
+        [
+          11,
+          1,
+          16,
+          827,
+          24,
+          84,
+          22,
+          11,
+          1,
+          3
+        ],
+        [
+          2,
+          1,
+          20,
+          13,
+          933,
+          13,
+          4,
+          14,
+          0,
+          0
+        ],
+        [
+          3,
+          1,
+          8,
+          79,
+          12,
+          885,
+          2,
+          8,
+          1,
+          1
+        ],
+        [
+          2,
+          1,
+          17,
+          13,
+          3,
+          4,
+          959,
+          0,
+          0,
+          1
+        ],
+        [
+          6,
+          0,
+          8,
+          5,
+          12,
+          15,
+          0,
+          952,
+          1,
+          1
+        ],
+        [
+          14,
+          2,
+          2,
+          2,
+          1,
+          1,
+          2,
+          0,
+          975,
+          1
+        ],
+        [
+          5,
+          21,
+          2,
+          2,
+          0,
+          1,
+          0,
+          0,
+          10,
+          959
+        ]
+      ]
+    },
+    {
+      "mode": "flip",
+      "models": 1,
+      "views_per_model": 2,
+      "forward_passes_per_sample": 2,
+      "loss": 0.30441475253105166,
+      "accuracy": 93.53,
+      "correct": 9353,
+      "samples": 10000,
+      "seconds": 4.360153675079346,
+      "per_class_accuracy": {
+        "airplane": 94.8,
+        "automobile": 97.2,
+        "bird": 92.2,
+        "cat": 83.0,
+        "deer": 93.6,
+        "dog": 88.9,
+        "frog": 96.2,
+        "horse": 95.7,
+        "ship": 97.7,
+        "truck": 96.0
+      },
+      "confusion_matrix": [
+        [
+          948,
+          4,
+          13,
+          5,
+          1,
+          0,
+          1,
+          2,
+          19,
+          7
+        ],
+        [
+          4,
+          972,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          4,
+          19
+        ],
+        [
+          14,
+          1,
+          922,
+          16,
+          17,
+          8,
+          16,
+          5,
+          1,
+          0
+        ],
+        [
+          5,
+          2,
+          16,
+          830,
+          29,
+          82,
+          19,
+          11,
+          2,
+          4
+        ],
+        [
+          3,
+          1,
+          17,
+          14,
+          936,
+          8,
+          8,
+          13,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          9,
+          71,
+          14,
+          889,
+          3,
+          9,
+          1,
+          1
+        ],
+        [
+          2,
+          1,
+          13,
+          12,
+          4,
+          4,
+          962,
+          1,
+          0,
+          1
+        ],
+        [
+          6,
+          0,
+          4,
+          8,
+          11,
+          12,
+          0,
+          957,
+          1,
+          1
+        ],
+        [
+          14,
+          2,
+          3,
+          1,
+          1,
+          0,
+          1,
+          0,
+          977,
+          1
+        ],
+        [
+          4,
+          21,
+          2,
+          1,
+          0,
+          1,
+          0,
+          0,
+          11,
+          960
+        ]
+      ]
+    },
+    {
+      "mode": "flip_shift",
+      "models": 1,
+      "views_per_model": 10,
+      "forward_passes_per_sample": 10,
+      "loss": 0.3019007523059845,
+      "accuracy": 93.66,
+      "correct": 9366,
+      "samples": 10000,
+      "seconds": 21.155154705047607,
+      "per_class_accuracy": {
+        "airplane": 94.8,
+        "automobile": 97.2,
+        "bird": 92.2,
+        "cat": 83.7,
+        "deer": 93.5,
+        "dog": 89.5,
+        "frog": 96.1,
+        "horse": 95.7,
+        "ship": 97.8,
+        "truck": 96.1
+      },
+      "confusion_matrix": [
+        [
+          948,
+          4,
+          12,
+          5,
+          1,
+          0,
+          1,
+          3,
+          19,
+          7
+        ],
+        [
+          5,
+          972,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          4,
+          18
+        ],
+        [
+          15,
+          0,
+          922,
+          17,
+          16,
+          8,
+          16,
+          5,
+          1,
+          0
+        ],
+        [
+          6,
+          1,
+          14,
+          837,
+          27,
+          79,
+          19,
+          11,
+          3,
+          3
+        ],
+        [
+          3,
+          1,
+          15,
+          14,
+          935,
+          10,
+          8,
+          14,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          9,
+          68,
+          13,
+          895,
+          3,
+          9,
+          0,
+          0
+        ],
+        [
+          3,
+          1,
+          14,
+          14,
+          2,
+          2,
+          961,
+          2,
+          0,
+          1
+        ],
+        [
+          6,
+          0,
+          4,
+          9,
+          10,
+          12,
+          0,
+          957,
+          1,
+          1
+        ],
+        [
+          12,
+          2,
+          3,
+          1,
+          1,
+          0,
+          2,
+          0,
+          978,
+          1
+        ],
+        [
+          3,
+          20,
+          2,
+          2,
+          0,
+          1,
+          1,
+          0,
+          10,
+          961
+        ]
+      ]
+    }
+  ],
+  "best_reported_mode": "flip_shift",
+  "note": "Report all predeclared TTA modes. Selecting a TTA recipe after seeing test labels is not a training improvement."
+}
