@@ -1,8 +1,8 @@
-$seed = 7777
-$experiment_name = "downsample_dense_dwconv_ttfs"
+$seed = 6543
+$experiment_name = "clean_finetune_from_94_36"
 $dataset = "cifar10"
 $downsample_mode = "dense"
-$dwconv_mode = "ttfs"
+$dwconv_mode = "dense"
 
 python `
     ".\train_continuous_ttfs_cifar10_32x32_stem1.py" `
