@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "cifar10_downsample_ttfs_dwconv_ttfs_seed7777",
-    "date_time": "2026-08-09T10:26:56+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_ttfs_dwconv_ttfs\\seed_7777",
+    "experiment_name": "cifar10_clean_finetune_from_94_36_seed6543",
+    "date_time": "2026-08-09T13:28:59+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\clean_finetune_from_94_36\\seed_6543",
     "notes": "Analytic TTFS depthwise and downsampling convolutions",
-    "seed": 7777,
-    "status": "early_stopped",
-    "updated_at": "2026-08-09T11:56:02+03:30"
+    "seed": 6543,
+    "status": "running",
+    "updated_at": "2026-08-09T15:05:59+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-10",
@@ -34,16 +34,16 @@
       6,
       2
     ],
-    "parameter_count": 20856586,
+    "parameter_count": 20850826,
     "stem_kernel": 3,
     "stem_stride": 1,
     "stem_padding": 1,
     "depthwise_kernel_size": 3,
-    "depthwise_mode": "ttfs",
+    "depthwise_mode": "dense",
     "downsample_kernel": 3,
     "downsample_stride": 2,
     "downsample_padding": 1,
-    "downsample_mode": "ttfs",
+    "downsample_mode": "dense",
     "residual_operator": "min",
     "pw1_mode": "ttfs",
     "pw2_mode": "ttfs",
@@ -84,14 +84,14 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 176,
-    "best_validation_accuracy": 93.88,
-    "final_train_accuracy": 77.30899110903533,
-    "final_validation_accuracy": 93.52,
-    "test_accuracy": 93.38,
-    "test_loss": 0.6617035701751709,
-    "training_time_seconds": 5314.734993696213,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_ttfs_dwconv_ttfs\\seed_7777\\best_checkpoint.pth"
+    "best_epoch": 241,
+    "best_validation_accuracy": 94.5,
+    "final_train_accuracy": 77.4294987915312,
+    "final_validation_accuracy": 94.44,
+    "test_accuracy": null,
+    "test_loss": null,
+    "training_time_seconds": 5820.0291085243225,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\clean_finetune_from_94_36\\seed_6543\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,

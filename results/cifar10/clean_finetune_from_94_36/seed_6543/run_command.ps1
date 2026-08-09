@@ -7,7 +7,7 @@
   '--download' `
   'false' `
   '--experiment_name' `
-  'downsample_ttfs_dwconv_ttfs' `
+  'clean_finetune_from_94_36' `
   '--experiment_notes' `
   'Analytic TTFS depthwise and downsampling convolutions' `
   '--dims' `
@@ -17,9 +17,9 @@
   '--dw_kernel_size' `
   '3' `
   '--dwconv_mode' `
-  'ttfs' `
+  'dense' `
   '--downsample_mode' `
-  'ttfs' `
+  'dense' `
   '--stage_delays' `
   '0.05,0.02,0.01,0.01' `
   '--pw1_mode' `
@@ -81,7 +81,7 @@
   '--early_stopping_min_delta' `
   '0.02' `
   '--seed' `
-  '7777' `
+  '6543' `
   '--amp' `
   'true' `
   '--device' `

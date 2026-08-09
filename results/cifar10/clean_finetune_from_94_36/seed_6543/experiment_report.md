@@ -1,16 +1,16 @@
-# Experiment Report: cifar10_downsample_ttfs_dwconv_ttfs_seed7777
+# Experiment Report: cifar10_clean_finetune_from_94_36_seed6543
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar10_downsample_ttfs_dwconv_ttfs_seed7777 |
-| Date Time | 2026-08-09T10:26:56+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\downsample_ttfs_dwconv_ttfs\seed_7777 |
+| Experiment Name | cifar10_clean_finetune_from_94_36_seed6543 |
+| Date Time | 2026-08-09T13:28:59+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\clean_finetune_from_94_36\seed_6543 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
-| Seed | 7777 |
-| Status | early_stopped |
-| Updated At | 2026-08-09T11:56:02+03:30 |
+| Seed | 6543 |
+| Status | running |
+| Updated At | 2026-08-09T15:05:59+03:30 |
 
 ## Dataset
 
@@ -31,16 +31,16 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 20856586 |
+| Parameter Count | 20850826 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
 | Depthwise Kernel Size | 3 |
-| Depthwise Mode | ttfs |
+| Depthwise Mode | dense |
 | Downsample Kernel | 3 |
 | Downsample Stride | 2 |
 | Downsample Padding | 1 |
-| Downsample Mode | ttfs |
+| Downsample Mode | dense |
 | Residual Operator | min |
 | Pw1 Mode | ttfs |
 | Pw2 Mode | ttfs |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 176 |
-| Best Validation Accuracy | 93.88 |
-| Final Train Accuracy | 77.30899110903533 |
-| Final Validation Accuracy | 93.52 |
-| Test Accuracy | 93.38 |
-| Test Loss | 0.6617035701751709 |
-| Training Time Seconds | 5314.734993696213 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\downsample_ttfs_dwconv_ttfs\seed_7777\best_checkpoint.pth |
+| Best Epoch | 241 |
+| Best Validation Accuracy | 94.5 |
+| Final Train Accuracy | 77.4294987915312 |
+| Final Validation Accuracy | 94.44 |
+| Test Accuracy | unknown |
+| Test Loss | unknown |
+| Training Time Seconds | 5820.0291085243225 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\clean_finetune_from_94_36\seed_6543\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 
