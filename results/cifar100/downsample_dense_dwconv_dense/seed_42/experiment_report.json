@@ -1,16 +1,16 @@
 {
   "experiment": {
-    "experiment_name": "cifar10_clean_finetune_from_94_36_seed6543",
-    "date_time": "2026-08-09T13:28:59+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\clean_finetune_from_94_36\\seed_6543",
+    "experiment_name": "cifar100_downsample_dense_dwconv_dense_seed42",
+    "date_time": "2026-08-09T15:25:12+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42",
     "notes": "Analytic TTFS depthwise and downsampling convolutions",
-    "seed": 6543,
-    "status": "early_stopped",
-    "updated_at": "2026-08-09T15:22:32+03:30"
+    "seed": 42,
+    "status": "running",
+    "updated_at": "2026-08-09T15:25:12+03:30"
   },
   "dataset": {
-    "dataset_name": "CIFAR-10",
-    "number_of_classes": 10,
+    "dataset_name": "CIFAR-100",
+    "number_of_classes": 100,
     "input_resolution": [
       32,
       32
@@ -34,7 +34,7 @@
       6,
       2
     ],
-    "parameter_count": 20850826,
+    "parameter_count": 20920036,
     "stem_kernel": 3,
     "stem_stride": 1,
     "stem_padding": 1,
@@ -84,14 +84,14 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 276,
-    "best_validation_accuracy": 94.6,
-    "final_train_accuracy": 77.4148241192475,
-    "final_validation_accuracy": 94.44,
-    "test_accuracy": 94.3,
-    "test_loss": 0.6436464570999145,
-    "training_time_seconds": 6812.663057804108,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\clean_finetune_from_94_36\\seed_6543\\best_checkpoint.pth"
+    "best_epoch": null,
+    "best_validation_accuracy": null,
+    "final_train_accuracy": null,
+    "final_validation_accuracy": null,
+    "test_accuracy": null,
+    "test_loss": null,
+    "training_time_seconds": 0.0,
+    "checkpoint_path": null
   },
   "optional_evaluation": {
     "activation_sparsity": null,

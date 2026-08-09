@@ -1,23 +1,23 @@
-# Experiment Report: cifar10_clean_finetune_from_94_36_seed6543
+# Experiment Report: cifar100_downsample_dense_dwconv_dense_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar10_clean_finetune_from_94_36_seed6543 |
-| Date Time | 2026-08-09T13:28:59+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\clean_finetune_from_94_36\seed_6543 |
+| Experiment Name | cifar100_downsample_dense_dwconv_dense_seed42 |
+| Date Time | 2026-08-09T15:25:12+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
-| Seed | 6543 |
-| Status | early_stopped |
-| Updated At | 2026-08-09T15:22:32+03:30 |
+| Seed | 42 |
+| Status | running |
+| Updated At | 2026-08-09T15:25:12+03:30 |
 
 ## Dataset
 
 | Field | Value |
 |---|---|
-| Dataset Name | CIFAR-10 |
-| Number Of Classes | 10 |
+| Dataset Name | CIFAR-100 |
+| Number Of Classes | 100 |
 | Input Resolution | [32,32] |
 | Train Sample Count | 45000 |
 | Validation Sample Count | 5000 |
@@ -31,7 +31,7 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 20850826 |
+| Parameter Count | 20920036 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 276 |
-| Best Validation Accuracy | 94.6 |
-| Final Train Accuracy | 77.4148241192475 |
-| Final Validation Accuracy | 94.44 |
-| Test Accuracy | 94.3 |
-| Test Loss | 0.6436464570999145 |
-| Training Time Seconds | 6812.663057804108 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\clean_finetune_from_94_36\seed_6543\best_checkpoint.pth |
+| Best Epoch | unknown |
+| Best Validation Accuracy | unknown |
+| Final Train Accuracy | unknown |
+| Final Validation Accuracy | unknown |
+| Test Accuracy | unknown |
+| Test Loss | unknown |
+| Training Time Seconds | 0.0 |
+| Checkpoint Path | unknown |
 
 ## Optional Evaluation Results
 
