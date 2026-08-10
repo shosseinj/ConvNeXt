@@ -1307,6 +1307,7 @@ class SpikingBlock(nn.Module):
         t_min = torch.tensor(self.t_min, device=device, dtype=dtype)
         t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
         t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
+        self.t_mid_spike = t_mid.detach()
 
         # pw2 is either the legacy TTFS transform or a dense score projection.
         # Dense mode matches ConvNeXt's linear second pointwise projection: it
@@ -1331,6 +1332,7 @@ class SpikingBlock(nn.Module):
             else:
                 scores_out = self.pw2(scores_mid)
             t_out = torch.clamp(-scores_out, self.t_min, self.t_max)
+        self.t_out_spike = t_out.detach()
 
         # reshape back
         t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()

@@ -1,0 +1,101 @@
+{
+  "experiment": {
+    "experiment_name": "cifar100_ablation_depthwise_kernel_5_seed2344",
+    "date_time": "2026-08-10T09:22:42+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_5\\seed_2344",
+    "notes": "Analytic TTFS depthwise and downsampling convolutions",
+    "seed": 2344,
+    "status": "early_stopped",
+    "updated_at": "2026-08-10T11:33:05+03:30"
+  },
+  "dataset": {
+    "dataset_name": "CIFAR-100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ],
+    "train_sample_count": 45000,
+    "validation_sample_count": 5000,
+    "test_sample_count": 10000,
+    "preprocessing": "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding",
+    "augmentation": "training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only"
+  },
+  "architecture": {
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "parameter_count": 20990692,
+    "stem_kernel": 3,
+    "stem_stride": 1,
+    "stem_padding": 1,
+    "depthwise_kernel_size": 5,
+    "depthwise_mode": "dense",
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "downsample_mode": "dense",
+    "residual_operator": "min",
+    "pw1_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "spike_dropout": 0.0,
+    "delay_enabled": true,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "t_min": 0.0,
+    "t_max": 1.0
+  },
+  "training": {
+    "epochs": 300,
+    "batch_size": 128,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0002,
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 3,
+    "lr_scheduler_factor": 0.85,
+    "minimum_learning_rate": 1e-06,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "head_dropout": 0.1,
+    "mixup_alpha": 0.2,
+    "cutmix_alpha": 1.0,
+    "randaugment": true,
+    "randaugment_num_ops": 2,
+    "randaugment_magnitude": 9,
+    "random_erasing": 0.1,
+    "early_stopping_patience": 30,
+    "ema_enabled": true,
+    "ema_decay": 0.9998
+  },
+  "results": {
+    "best_epoch": 254,
+    "best_validation_accuracy": 72.74,
+    "final_train_accuracy": 71.49534397493422,
+    "final_validation_accuracy": 72.44,
+    "test_accuracy": 72.96,
+    "test_loss": 1.7471488679885865,
+    "training_time_seconds": 7823.055646896362,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_5\\seed_2344\\best_checkpoint.pth"
+  },
+  "optional_evaluation": {
+    "activation_sparsity": null,
+    "dense_macs_per_sample": null,
+    "theoretical_synops_per_sample": null
+  }
+}

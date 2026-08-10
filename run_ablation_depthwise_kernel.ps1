@@ -11,13 +11,15 @@ foreach ($seed in $seeds) {
 
     foreach ($kernel_size in $kernel_sizes) {
         
-        $experiment_name = "ablation_depthwise/ablation_depthwise_kernel_$kernel_size"
-
+        
+        $experiment_name = "ablation_depthwise_kernel_$kernel_size"
+        $output_dir = ".\results\$dataset\ablation_depthwise\$experiment_name\seed_$seed"
         Write-Host "Running seed=$seed kernel=$kernel_size"
         python `
             ".\train_continuous_ttfs_cifar10_32x32_stem1.py" `
             --dataset $dataset `
             --data_path "..\cifar_data" `
+            --output_dir $output_dir `
             --download false `
             --experiment_name $experiment_name `
             --experiment_notes "Analytic TTFS depthwise and downsampling convolutions" `

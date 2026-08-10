@@ -1,0 +1,16 @@
+{
+  "best_epoch": 197,
+  "last_epoch": 227,
+  "best_validation_accuracy": 71.18,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.7544286460876466,
+    "accuracy": 71.03,
+    "samples": 10000,
+    "seconds": 13.740622520446777
+  },
+  "best_checkpoint": "results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_7\\seed_2344\\best_checkpoint.pth",
+  "last_checkpoint": "results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_7\\seed_2344\\last_checkpoint.pth"
+}
