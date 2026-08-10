@@ -14,8 +14,9 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import datasets, transforms
+from torchvision.datasets.folder import default_loader
 
 from models.convnext import ConvNeXtSpiking
 
@@ -57,9 +58,12 @@ def dataset_name(value):
     aliases = {
         "cifar10": "cifar10",
         "cifar100": "cifar100",
+        "tinyimagenet": "tinyimagenet",
     }
     if normalized not in aliases:
-        raise argparse.ArgumentTypeError("Dataset must be CIFAR-10 or CIFAR-100")
+        raise argparse.ArgumentTypeError(
+            "Dataset must be CIFAR-10, CIFAR-100, or Tiny ImageNet"
+        )
     return aliases[normalized]
 
 
@@ -69,14 +73,78 @@ def dataset_metadata(name):
             "display_name": "CIFAR-10",
             "dataset_class": datasets.CIFAR10,
             "num_classes": 10,
+            "input_resolution": 32,
+            "crop_padding": 4,
+            "default_val_size": 5000,
         }
     if name == "cifar100":
         return {
             "display_name": "CIFAR-100",
             "dataset_class": datasets.CIFAR100,
             "num_classes": 100,
+            "input_resolution": 32,
+            "crop_padding": 4,
+            "default_val_size": 5000,
+        }
+    if name == "tinyimagenet":
+        return {
+            "display_name": "Tiny ImageNet",
+            "dataset_class": None,
+            "num_classes": 200,
+            "input_resolution": 64,
+            "crop_padding": 8,
+            "default_val_size": 10000,
         }
     raise ValueError(f"Unsupported dataset: {name}")
+
+
+def resolve_tinyimagenet_root(data_path):
+    root = Path(data_path)
+    candidates = (root, root / "tiny-imagenet-200")
+    for candidate in candidates:
+        if (
+            (candidate / "train").is_dir()
+            and (candidate / "val" / "images").is_dir()
+            and (candidate / "val" / "val_annotations.txt").is_file()
+        ):
+            return candidate
+    raise FileNotFoundError(
+        "Tiny ImageNet root must contain train/, val/images/, and "
+        f"val/val_annotations.txt. Checked: {', '.join(map(str, candidates))}"
+    )
+
+
+class TinyImageNetValidationDataset(Dataset):
+    def __init__(self, root, class_to_idx, transform=None):
+        self.root = Path(root)
+        self.transform = transform
+        annotations_path = self.root / "val_annotations.txt"
+        images_directory = self.root / "images"
+        samples = []
+        for line in annotations_path.read_text(encoding="utf-8").splitlines():
+            fields = line.split("\t")
+            if len(fields) < 2:
+                raise ValueError(f"Malformed Tiny ImageNet annotation: {line!r}")
+            filename, class_id = fields[:2]
+            if class_id not in class_to_idx:
+                raise ValueError(f"Unknown Tiny ImageNet class in val annotations: {class_id}")
+            image_path = images_directory / filename
+            if not image_path.is_file():
+                raise FileNotFoundError(f"Tiny ImageNet validation image missing: {image_path}")
+            samples.append((image_path, class_to_idx[class_id]))
+        if not samples:
+            raise ValueError(f"No Tiny ImageNet validation samples found in {annotations_path}")
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, index):
+        path, target = self.samples[index]
+        image = default_loader(path)
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, target
 
 
 def resolve_experiment_identity(dataset, experiment_name, seed, output_dir):
@@ -102,7 +170,7 @@ def resolve_experiment_identity(dataset, experiment_name, seed, output_dir):
 
 def args_parser():
     parser = argparse.ArgumentParser(
-        "Continuous TTFS ConvNeXt on native CIFAR 32x32 datasets"
+        "Continuous TTFS ConvNeXt on native CIFAR and Tiny ImageNet datasets"
     )
     parser.add_argument("--data_path", default="../cifar_data")
     parser.add_argument("--output_dir", default="")
@@ -161,12 +229,16 @@ def args_parser():
     parser.add_argument("--stage_delays", default="0.4,0.0,0.0,0.0")
     parser.add_argument("--amp", type=str2bool, default=True)
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--val_size", type=int, default=5000)
+    parser.add_argument("--val_size", type=int, default=None)
     parser.add_argument("--print_freq", type=int, default=50)
     args = parser.parse_args()
     selected_dataset = dataset_metadata(args.dataset)
     args.dataset_display_name = selected_dataset["display_name"]
     args.num_classes = selected_dataset["num_classes"]
+    args.input_resolution = selected_dataset["input_resolution"]
+    args.crop_padding = selected_dataset["crop_padding"]
+    if args.val_size is None:
+        args.val_size = selected_dataset["default_val_size"]
     try:
         args.experiment_name, args.output_dir = resolve_experiment_identity(
             dataset=args.dataset,
@@ -254,8 +326,10 @@ class ModelEMA:
 
 
 def build_loaders(args):
+    metadata = dataset_metadata(args.dataset)
+    input_resolution = metadata["input_resolution"]
     train_transforms = [
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomCrop(input_resolution, padding=metadata["crop_padding"]),
         transforms.RandomHorizontalFlip(),
     ]
     if args.randaugment:
@@ -270,16 +344,47 @@ def build_loaders(args):
         train_transforms.append(transforms.RandomErasing(p=args.random_erasing))
     train_transform = transforms.Compose(train_transforms)
     eval_transform = transforms.ToTensor()
-    dataset_class = dataset_metadata(args.dataset)["dataset_class"]
-    train_dataset = dataset_class(
-        args.data_path, train=True, transform=train_transform, download=args.download
-    )
-    validation_dataset = dataset_class(
-        args.data_path, train=True, transform=eval_transform, download=False
-    )
-    test_dataset = dataset_class(
-        args.data_path, train=False, transform=eval_transform, download=args.download
-    )
+    if args.dataset == "tinyimagenet":
+        root = resolve_tinyimagenet_root(args.data_path)
+        train_dataset = datasets.ImageFolder(root / "train", transform=train_transform)
+        validation_dataset = datasets.ImageFolder(
+            root / "train", transform=eval_transform
+        )
+        if len(train_dataset.classes) != metadata["num_classes"]:
+            raise ValueError(
+                f"Expected {metadata['num_classes']} Tiny ImageNet train classes, "
+                f"found {len(train_dataset.classes)}"
+            )
+        test_dataset = TinyImageNetValidationDataset(
+            root / "val",
+            train_dataset.class_to_idx,
+            transform=eval_transform,
+        )
+    else:
+        dataset_class = metadata["dataset_class"]
+        train_dataset = dataset_class(
+            args.data_path,
+            train=True,
+            transform=train_transform,
+            download=args.download,
+        )
+        validation_dataset = dataset_class(
+            args.data_path,
+            train=True,
+            transform=eval_transform,
+            download=False,
+        )
+        test_dataset = dataset_class(
+            args.data_path,
+            train=False,
+            transform=eval_transform,
+            download=args.download,
+        )
+    if not 0 < args.val_size < len(train_dataset):
+        raise ValueError(
+            f"val_size must be between 1 and {len(train_dataset) - 1}, "
+            f"got {args.val_size}"
+        )
     generator = torch.Generator().manual_seed(args.seed)
     indices = torch.randperm(len(train_dataset), generator=generator).tolist()
     validation_indices = indices[: args.val_size]
@@ -410,7 +515,7 @@ def architecture_metadata(args):
         "num_classes": args.num_classes,
         "dims": list(args.dims),
         "depths": list(args.depths),
-        "input_resolution": [32, 32],
+        "input_resolution": [args.input_resolution, args.input_resolution],
         "depthwise_kernel_size": args.dw_kernel_size,
         "dwconv_mode": args.dwconv_mode,
         "downsample_mode": args.downsample_mode,
@@ -473,7 +578,13 @@ def delay_gradient_diagnostic(model, args, device):
     try:
         model.train()
         model.zero_grad(set_to_none=True)
-        images = torch.rand(2, 3, 32, 32, device=device)
+        images = torch.rand(
+            2,
+            3,
+            args.input_resolution,
+            args.input_resolution,
+            device=device,
+        )
         logits = model(encode(images, args))
         expected_logits_shape = (images.size(0), args.num_classes)
         if logits.shape != expected_logits_shape:
@@ -620,7 +731,7 @@ def create_experiment_report(
         "dataset": {
             "dataset_name": args.dataset_display_name,
             "number_of_classes": args.num_classes,
-            "input_resolution": [32, 32],
+            "input_resolution": [args.input_resolution, args.input_resolution],
             "train_sample_count": train_sample_count,
             "validation_sample_count": validation_sample_count,
             "test_sample_count": test_sample_count,
@@ -629,7 +740,8 @@ def create_experiment_report(
                 "then continuous TTFS encoding"
             ),
             "augmentation": (
-                "training: RandomCrop(32,padding=4), RandomHorizontalFlip, "
+                f"training: RandomCrop({args.input_resolution},padding="
+                f"{args.crop_padding}), RandomHorizontalFlip, "
                 f"RandAugment(enabled={args.randaugment},ops="
                 f"{args.randaugment_num_ops},magnitude={args.randaugment_magnitude}), "
                 f"RandomErasing(p={args.random_erasing}), Mixup(alpha="
@@ -839,7 +951,7 @@ def main():
     train_loader, validation_loader, test_loader = build_loaders(args)
     model = make_model(args).to(device)
 
-    # Verify native 32x32 input, unchanged stride-1 stem, and stage schedule.
+    # Verify native input resolution, unchanged stride-1 stem, and stage schedule.
     shapes = {}
     handles = []
     for index, layer in enumerate(model.downsample_layers):
@@ -851,15 +963,29 @@ def main():
             )
         )
     with torch.no_grad():
-        model(encode(torch.rand(1, 3, 32, 32, device=device), args))
+        model(
+            encode(
+                torch.rand(
+                    1,
+                    3,
+                    args.input_resolution,
+                    args.input_resolution,
+                    device=device,
+                ),
+                args,
+            )
+        )
     for handle in handles:
         handle.remove()
     print("Runtime downsample shapes:", shapes)
     expected_shapes = {
-        0: (1, args.dims[0], 32, 32),
-        1: (1, args.dims[1], 16, 16),
-        2: (1, args.dims[2], 8, 8),
-        3: (1, args.dims[3], 4, 4),
+        index: (
+            1,
+            args.dims[index],
+            args.input_resolution // (2 ** index),
+            args.input_resolution // (2 ** index),
+        )
+        for index in range(4)
     }
     assert shapes == expected_shapes, f"Expected {expected_shapes}, got {shapes}"
     stem = model.downsample_layers[0][0]
@@ -880,7 +1006,7 @@ def main():
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
     print(
         f"Dataset: {args.dataset_display_name}, classes={args.num_classes}, "
-        "input_resolution=32x32"
+        f"input_resolution={args.input_resolution}x{args.input_resolution}"
     )
     print(
         f"Architecture: dims={args.dims}, depths={args.depths}, "
@@ -968,11 +1094,11 @@ def main():
             "name": args.dataset_display_name,
             "canonical_name": args.dataset,
             "number_of_classes": args.num_classes,
-            "input_resolution": [32, 32],
+            "input_resolution": [args.input_resolution, args.input_resolution],
         },
         "dims": list(args.dims),
         "depths": list(args.depths),
-        "input_resolution": [32, 32],
+        "input_resolution": [args.input_resolution, args.input_resolution],
         "stem": {
             "in_channels": 3,
             "kernel_size": 3,
@@ -980,7 +1106,13 @@ def main():
             "padding": 1,
             "out_channels": args.dims[0],
         },
-        "spatial_schedule": [32, 32, 16, 8, 4],
+        "spatial_schedule": [
+            args.input_resolution,
+            args.input_resolution,
+            args.input_resolution // 2,
+            args.input_resolution // 4,
+            args.input_resolution // 8,
+        ],
         "depthwise_kernel_size": args.dw_kernel_size,
         "depthwise_mode": args.dwconv_mode,
         "downsampling": {
