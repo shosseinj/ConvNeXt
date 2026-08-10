@@ -1,16 +1,16 @@
-# Experiment Report: cifar100_downsample_dense_dwconv_dense_seed42
+# Experiment Report: cifar100_test_downsample_ttfs_dwconv_ttfs_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar100_downsample_dense_dwconv_dense_seed42 |
-| Date Time | 2026-08-09T15:25:12+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42 |
+| Experiment Name | cifar100_test_downsample_ttfs_dwconv_ttfs_seed42 |
+| Date Time | 2026-08-10T02:22:57+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\test_downsample_ttfs_dwconv_ttfs\seed_42 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
 | Seed | 42 |
 | Status | early_stopped |
-| Updated At | 2026-08-09T16:39:15+03:30 |
+| Updated At | 2026-08-10T03:41:49+03:30 |
 
 ## Dataset
 
@@ -31,16 +31,16 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 20920036 |
+| Parameter Count | 20925796 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
 | Depthwise Kernel Size | 3 |
-| Depthwise Mode | dense |
+| Depthwise Mode | ttfs |
 | Downsample Kernel | 3 |
 | Downsample Stride | 2 |
 | Downsample Padding | 1 |
-| Downsample Mode | dense |
+| Downsample Mode | ttfs |
 | Residual Operator | min |
 | Pw1 Mode | ttfs |
 | Pw2 Mode | ttfs |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 189 |
+| Best Epoch | 197 |
 | Best Validation Accuracy | 74.02 |
-| Final Train Accuracy | 68.714470279968 |
-| Final Validation Accuracy | 73.56 |
-| Test Accuracy | 73.44 |
-| Test Loss | 1.6588977546691894 |
-| Training Time Seconds | 4442.80838227272 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42\best_checkpoint.pth |
+| Final Train Accuracy | 69.89394437542794 |
+| Final Validation Accuracy | 73.82 |
+| Test Accuracy | 73.4 |
+| Test Loss | 1.6589512495040895 |
+| Training Time Seconds | 4731.601316452026 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\test_downsample_ttfs_dwconv_ttfs\seed_42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

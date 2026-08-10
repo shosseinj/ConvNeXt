@@ -9,9 +9,11 @@ import statistics
 from pathlib import Path
 
 
-BASE_DIRECTORY = Path("results/cifar10/clean_finetune_from_94_36")
-DATASET_NAME = "CIFAR-10"
-SEEDS = (42, 6543, 7777)
+BASE_DIRECTORY = Path("results/cifar100/downsample_dense_dwconv_dense")
+# BASE_DIRECTORY = Path("results/cifar10/clean_finetune_from_94_36")
+DATASET_NAME = "CIFAR-100"
+# SEEDS = ( 6543, 7777)
+SEEDS = ( 42, 7777, 2344)
 
 
 def _accuracy(value, source):

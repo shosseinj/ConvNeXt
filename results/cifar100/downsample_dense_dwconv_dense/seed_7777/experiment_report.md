@@ -1,16 +1,16 @@
-# Experiment Report: cifar100_downsample_dense_dwconv_dense_seed42
+# Experiment Report: cifar100_downsample_dense_dwconv_dense_seed7777
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar100_downsample_dense_dwconv_dense_seed42 |
-| Date Time | 2026-08-09T15:25:12+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42 |
+| Experiment Name | cifar100_downsample_dense_dwconv_dense_seed7777 |
+| Date Time | 2026-08-09T17:49:54+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_7777 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
-| Seed | 42 |
+| Seed | 7777 |
 | Status | early_stopped |
-| Updated At | 2026-08-09T16:39:15+03:30 |
+| Updated At | 2026-08-09T19:15:57+03:30 |
 
 ## Dataset
 
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 189 |
-| Best Validation Accuracy | 74.02 |
-| Final Train Accuracy | 68.714470279968 |
-| Final Validation Accuracy | 73.56 |
-| Test Accuracy | 73.44 |
-| Test Loss | 1.6588977546691894 |
-| Training Time Seconds | 4442.80838227272 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42\best_checkpoint.pth |
+| Best Epoch | 226 |
+| Best Validation Accuracy | 75.84 |
+| Final Train Accuracy | 72.47007089962977 |
+| Final Validation Accuracy | 75.44 |
+| Test Accuracy | 73.99 |
+| Test Loss | 1.6856521362304688 |
+| Training Time Seconds | 5163.548650979996 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_7777\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

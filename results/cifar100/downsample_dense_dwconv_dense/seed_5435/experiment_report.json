@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "cifar100_downsample_dense_dwconv_dense_seed42",
-    "date_time": "2026-08-09T15:25:12+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42",
+    "experiment_name": "cifar100_downsample_dense_dwconv_dense_seed5435",
+    "date_time": "2026-08-09T20:32:22+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_5435",
     "notes": "Analytic TTFS depthwise and downsampling convolutions",
-    "seed": 42,
+    "seed": 5435,
     "status": "early_stopped",
-    "updated_at": "2026-08-09T16:39:15+03:30"
+    "updated_at": "2026-08-09T21:38:08+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-100",
@@ -84,14 +84,14 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 189,
-    "best_validation_accuracy": 74.02,
-    "final_train_accuracy": 68.714470279968,
-    "final_validation_accuracy": 73.56,
-    "test_accuracy": 73.44,
-    "test_loss": 1.6588977546691894,
-    "training_time_seconds": 4442.80838227272,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42\\best_checkpoint.pth"
+    "best_epoch": 174,
+    "best_validation_accuracy": 73.78,
+    "final_train_accuracy": 72.86750878947062,
+    "final_validation_accuracy": 73.4,
+    "test_accuracy": 73.85,
+    "test_loss": 1.6468133630752564,
+    "training_time_seconds": 3945.729116678238,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_5435\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,

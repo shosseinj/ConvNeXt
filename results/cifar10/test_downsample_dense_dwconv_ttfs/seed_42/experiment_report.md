@@ -1,23 +1,23 @@
-# Experiment Report: cifar100_downsample_dense_dwconv_dense_seed42
+# Experiment Report: cifar10_test_downsample_dense_dwconv_ttfs_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar100_downsample_dense_dwconv_dense_seed42 |
-| Date Time | 2026-08-09T15:25:12+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42 |
+| Experiment Name | cifar10_test_downsample_dense_dwconv_ttfs_seed42 |
+| Date Time | 2026-08-10T01:13:51+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\test_downsample_dense_dwconv_ttfs\seed_42 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
 | Seed | 42 |
 | Status | early_stopped |
-| Updated At | 2026-08-09T16:39:15+03:30 |
+| Updated At | 2026-08-10T02:22:50+03:30 |
 
 ## Dataset
 
 | Field | Value |
 |---|---|
-| Dataset Name | CIFAR-100 |
-| Number Of Classes | 100 |
+| Dataset Name | CIFAR-10 |
+| Number Of Classes | 10 |
 | Input Resolution | [32,32] |
 | Train Sample Count | 45000 |
 | Validation Sample Count | 5000 |
@@ -31,12 +31,12 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 20920036 |
+| Parameter Count | 20855242 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
 | Depthwise Kernel Size | 3 |
-| Depthwise Mode | dense |
+| Depthwise Mode | ttfs |
 | Downsample Kernel | 3 |
 | Downsample Stride | 2 |
 | Downsample Padding | 1 |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 189 |
-| Best Validation Accuracy | 74.02 |
-| Final Train Accuracy | 68.714470279968 |
-| Final Validation Accuracy | 73.56 |
-| Test Accuracy | 73.44 |
-| Test Loss | 1.6588977546691894 |
-| Training Time Seconds | 4442.80838227272 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\downsample_dense_dwconv_dense\seed_42\best_checkpoint.pth |
+| Best Epoch | 169 |
+| Best Validation Accuracy | 93.42 |
+| Final Train Accuracy | 74.51852820927297 |
+| Final Validation Accuracy | 93.14 |
+| Test Accuracy | 93.16 |
+| Test Loss | 0.6675601984024048 |
+| Training Time Seconds | 4139.659193515778 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar10\test_downsample_dense_dwconv_ttfs\seed_42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 
