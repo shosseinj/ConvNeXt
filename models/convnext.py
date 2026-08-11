@@ -1189,7 +1189,8 @@ class SpikingBlock(nn.Module):
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
                  spike_dropout: float = 0.0, pw2_mode: str = "ttfs",
-                 ttfs_norm_mode: str = "none", dwconv_mode: str = "dense"):
+                 ttfs_norm_mode: str = "none", dwconv_mode: str = "dense",
+                 residual_operator: str = "min"):
         super().__init__()
         # reuse modules (share weights)
         self.dwconv_mode = str(dwconv_mode).strip().lower()
@@ -1207,6 +1208,17 @@ class SpikingBlock(nn.Module):
         )
         self.pw1 = orig_block.pwconv1
         self.pw2 = orig_block.pwconv2
+        self.residual_operator = str(residual_operator).strip().lower()
+        if self.residual_operator not in {"min", "mean", "learnable_gate"}:
+            raise ValueError(
+                "residual_operator must be 'min', 'mean', or 'learnable_gate'"
+            )
+        if self.residual_operator == "learnable_gate":
+            self.raw_residual_gate = nn.Parameter(
+                torch.zeros(self.pw2.out_features)
+            )
+        else:
+            self.register_parameter("raw_residual_gate", None)
         self.force_positive_weights = force_positive_weights
         self.gamma = getattr(orig_block, 'gamma', None)
         self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
@@ -1280,6 +1292,17 @@ class SpikingBlock(nn.Module):
             ),
         )
 
+    def combine_residual(self, identity_time, branch_time):
+        if self.residual_operator == "min":
+            return torch.minimum(identity_time, branch_time)
+        if self.residual_operator == "mean":
+            return (identity_time + branch_time) * 0.5
+        gate = torch.sigmoid(self.raw_residual_gate).to(
+            device=identity_time.device,
+            dtype=identity_time.dtype,
+        ).view(1, -1, 1, 1)
+        return gate * identity_time + (1.0 - gate) * branch_time
+
     def forward(self, tj):
         # tj: spike times tensor (N, C, H, W)
         x = tj
@@ -1339,7 +1362,7 @@ class SpikingBlock(nn.Module):
 
         # TTFS-aware dropout applies only to t_out and never rescales kept times.
         t_out = self._apply_spike_dropout(t_out)
-        out = torch.minimum(tj, t_out)
+        out = self.combine_residual(tj, t_out)
 
         # store latest output spike times for regularization/monitoring
         # Use the final output `out` (this is what hooks and forward actually return)
@@ -1356,7 +1379,7 @@ class ConvNeXtSpiking(ConvNeXt):
                  spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
                  stage_delays=None, ttfs_norm_mode="none",
                  final_score_norm=False, downsample_mode="dense",
-                 dwconv_mode="dense", **kwargs):
+                 dwconv_mode="dense", residual_operator="min", **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = kwargs.get('force_positive_weights', False)
         self.init_delay = float(init_delay)
@@ -1367,10 +1390,15 @@ class ConvNeXtSpiking(ConvNeXt):
         self.stage_delays = tuple(float(delay) for delay in stage_delays)
         self.downsample_mode = str(downsample_mode).strip().lower()
         self.dwconv_mode = str(dwconv_mode).strip().lower()
+        self.residual_operator = str(residual_operator).strip().lower()
         if self.downsample_mode not in {"dense", "ttfs"}:
             raise ValueError("downsample_mode must be 'dense' or 'ttfs'")
         if self.dwconv_mode not in {"dense", "ttfs"}:
             raise ValueError("dwconv_mode must be 'dense' or 'ttfs'")
+        if self.residual_operator not in {"min", "mean", "learnable_gate"}:
+            raise ValueError(
+                "residual_operator must be 'min', 'mean', or 'learnable_gate'"
+            )
         max_delay = 0.9 * (float(t_max) - float(t_min))
         if any(delay < 0.0 or delay > max_delay for delay in self.stage_delays):
             raise ValueError(
@@ -1400,6 +1428,7 @@ class ConvNeXtSpiking(ConvNeXt):
                     pw2_mode=pw2_mode,
                     ttfs_norm_mode=ttfs_norm_mode,
                     dwconv_mode=self.dwconv_mode,
+                    residual_operator=self.residual_operator,
                 )
                 new_blocks.append(spb)
             self.stages[si] = nn.Sequential(*new_blocks)

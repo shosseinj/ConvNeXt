@@ -178,7 +178,11 @@ def args_parser():
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
     parser.add_argument("--dataset", type=dataset_name, default="cifar10")
-    parser.add_argument("--residual_operator", default="min")
+    parser.add_argument(
+        "--residual_operator",
+        choices=("min", "mean", "learnable_gate"),
+        default="min",
+    )
     parser.add_argument("--pw1_mode", default="continuous TTFS")
     parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="ttfs")
     parser.add_argument(
@@ -438,6 +442,7 @@ def make_model(args):
         final_score_norm=args.final_score_norm,
         dwconv_mode=args.dwconv_mode,
         downsample_mode=args.downsample_mode,
+        residual_operator=getattr(args, "residual_operator", "min"),
         force_positive_weights=args.force_positive_weights,
         init_delay=args.init_delay,
         stage_delays=delays,
@@ -519,6 +524,7 @@ def architecture_metadata(args):
         "depthwise_kernel_size": args.dw_kernel_size,
         "dwconv_mode": args.dwconv_mode,
         "downsample_mode": args.downsample_mode,
+        "residual_operator": getattr(args, "residual_operator", "min"),
         "pw2_mode": args.pw2_mode,
         "ttfs_norm_mode": args.ttfs_norm_mode,
         "final_score_norm": args.final_score_norm,
@@ -546,6 +552,7 @@ def validate_resume_architecture(checkpoint, args):
         checkpoint_architecture.setdefault("num_classes", 10)
         checkpoint_architecture.setdefault("dwconv_mode", "dense")
         checkpoint_architecture.setdefault("downsample_mode", "dense")
+        checkpoint_architecture.setdefault("residual_operator", "min")
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
             "Resume checkpoint architecture does not match this run. "
@@ -762,7 +769,7 @@ def create_experiment_report(
             "downsample_stride": 2,
             "downsample_padding": 1,
             "downsample_mode": args.downsample_mode,
-            "residual_operator": args.residual_operator,
+            "residual_operator": getattr(args, "residual_operator", "min"),
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
             "ttfs_norm_mode": args.ttfs_norm_mode,

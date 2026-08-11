@@ -21,12 +21,6 @@ from models.convnext import (
     SpikingBlock,
     ContinuousTTFSConv2d,
 )
-from train_continuous_ttfs_cifar10_32x32_stem1 import (
-    TinyImageNetValidationDataset,
-    resolve_tinyimagenet_root,
-)
-
-
 class _TerminalAndFileWriter:
     def __init__(self, terminal, report_file):
         self.terminal = terminal
@@ -285,6 +279,27 @@ def get_checkpoint_convolution_modes(checkpoint, state_dict=None):
     return modes
 
 
+def get_checkpoint_residual_operator(checkpoint):
+    if not isinstance(checkpoint, dict):
+        raise ValueError(
+            "Checkpoint must be a dictionary to determine the residual operator."
+        )
+
+    architecture = checkpoint.get("architecture")
+    if architecture is None:
+        architecture = {}
+    elif not isinstance(architecture, dict):
+        raise ValueError("Checkpoint architecture metadata must be a dictionary.")
+
+    value = str(architecture.get("residual_operator", "min")).strip().lower()
+    if value not in {"min", "mean", "learnable_gate"}:
+        raise ValueError(
+            "Checkpoint architecture field residual_operator must be "
+            f"'min', 'mean', or 'learnable_gate', got {value!r}."
+        )
+    return value
+
+
 # ============================================================
 # Dataset
 # ============================================================
@@ -322,6 +337,11 @@ def build_loader(
         "tiny_imagenet",
         "tiny-imagenet",
     }:
+        from train_continuous_ttfs_cifar10_32x32_stem1 import (
+            TinyImageNetValidationDataset,
+            resolve_tinyimagenet_root,
+        )
+
         root = resolve_tinyimagenet_root(data_path)
         train_dataset = datasets.ImageFolder(root / "train")
         if len(train_dataset.classes) != 200:
@@ -382,7 +402,7 @@ def image_to_spike_time(
 # Model construction
 # ============================================================
 
-def build_model(args, convolution_modes):
+def build_model(args, convolution_modes, residual_operator="min"):
     info = get_dataset_info(args.dataset)
 
     model = ConvNeXtSpiking(
@@ -401,6 +421,7 @@ def build_model(args, convolution_modes):
 
         dwconv_mode=convolution_modes["dwconv_mode"],
         downsample_mode=convolution_modes["downsample_mode"],
+        residual_operator=residual_operator,
         pw2_mode="ttfs",
 
         stage_delays=(
@@ -1170,6 +1191,7 @@ def run_evaluation(args, checkpoint_path):
         checkpoint,
         state_dict,
     )
+    residual_operator = get_checkpoint_residual_operator(checkpoint)
     architecture = checkpoint.get("architecture") or {}
     mode_sources = {
         field: (
@@ -1191,10 +1213,20 @@ def run_evaluation(args, checkpoint_path):
         f"{convolution_modes['downsample_mode']} "
         f"({mode_sources['downsample_mode']})"
     )
+    residual_source = (
+        "metadata"
+        if "residual_operator" in architecture
+        else "legacy default"
+    )
+    print(
+        "Detected residual operator: "
+        f"{residual_operator} ({residual_source})"
+    )
 
     model = build_model(
         args,
         convolution_modes,
+        residual_operator,
     )
 
     incompatible_keys = model.load_state_dict(

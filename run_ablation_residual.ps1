@@ -1,21 +1,17 @@
 $dataset = "cifar100"
 $downsample_mode = "dense"
 $dwconv_mode = "dense"
-
-
-
-$seeds = @(2344, 5435)
 $kernel_size = 3
-$residual = ('learnable_gate', 'sum')
+
+$seeds = @(42, 2344, 5435)
+$residual_operators = @("mean", "learnable_gate")
 
 foreach ($seed in $seeds) {
+    foreach  ($residual_operator in $residual_operators) {
+        $experiment_name = $residual_operator
+        $output_dir = ".\results\$dataset\ablation_residual\$residual_operator\seed_$seed"
 
-   
-        
-        
-        $experiment_name = "ablation_depthwise_kernel_$kernel_size"
-        $output_dir = ".\results\$dataset\ablation_depthwise\$experiment_name\seed_$seed"
-        Write-Host "Running seed=$seed kernel=$kernel_size"
+        Write-Host "Running residual_operator=$residual_operator seed=$seed"
         python `
             ".\train_continuous_ttfs_cifar10_32x32_stem1.py" `
             --dataset $dataset `
@@ -23,7 +19,7 @@ foreach ($seed in $seeds) {
             --output_dir $output_dir `
             --download false `
             --experiment_name $experiment_name `
-            --experiment_notes "Analytic TTFS depthwise and downsampling convolutions" `
+            --experiment_notes "Residual operator ablation with dense depthwise and downsampling convolutions" `
             --dims "96,192,384,768" `
             --depths "2,2,6,2" `
             --dw_kernel_size $kernel_size `
@@ -32,7 +28,7 @@ foreach ($seed in $seeds) {
             --stage_delays "0.05,0.02,0.01,0.01" `
             --pw1_mode ttfs `
             --pw2_mode ttfs `
-            --residual_operator min `
+            --residual_operator $residual_operator `
             --ttfs_norm_mode score_layernorm `
             --final_score_norm true `
             --epochs 300 `
@@ -62,8 +58,9 @@ foreach ($seed in $seeds) {
             --seed $seed `
             --amp true `
             --device cuda
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Training failed for residual_operator=$residual_operator seed=$seed"
+        }
     }
 }
-
-
-
