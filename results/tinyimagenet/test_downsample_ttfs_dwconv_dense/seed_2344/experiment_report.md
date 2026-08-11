@@ -9,8 +9,8 @@
 | Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_2344 |
 | Notes | Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions |
 | Seed | 2344 |
-| Status | running |
-| Updated At | 2026-08-10T15:36:19+03:30 |
+| Status | early_stopped |
+| Updated At | 2026-08-11T01:56:27+03:30 |
 
 ## Dataset
 
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | unknown |
-| Best Validation Accuracy | unknown |
-| Final Train Accuracy | unknown |
-| Final Validation Accuracy | unknown |
-| Test Accuracy | unknown |
-| Test Loss | unknown |
-| Training Time Seconds | 0.0 |
-| Checkpoint Path | unknown |
+| Best Epoch | 115 |
+| Best Validation Accuracy | 62.49 |
+| Final Train Accuracy | 67.59380609639818 |
+| Final Validation Accuracy | 62.14 |
+| Test Accuracy | 63.45 |
+| Test Loss | 2.2256446113586428 |
+| Training Time Seconds | 22619.025986909866 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_2344\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "tinyimagenet_test_downsample_ttfs_dwconv_dense_seed2344",
-    "date_time": "2026-08-10T15:36:19+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344",
+    "experiment_name": "tinyimagenet_test_downsample_ttfs_dwconv_dense_seed5435",
+    "date_time": "2026-08-11T01:56:33+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_5435",
     "notes": "Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions",
-    "seed": 2344,
+    "seed": 5435,
     "status": "early_stopped",
-    "updated_at": "2026-08-11T01:56:27+03:30"
+    "updated_at": "2026-08-11T06:50:14+03:30"
   },
   "dataset": {
     "dataset_name": "Tiny ImageNet",
@@ -84,14 +84,14 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 115,
-    "best_validation_accuracy": 62.49,
-    "final_train_accuracy": 67.59380609639818,
-    "final_validation_accuracy": 62.14,
-    "test_accuracy": 63.45,
-    "test_loss": 2.2256446113586428,
-    "training_time_seconds": 22619.025986909866,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth"
+    "best_epoch": 87,
+    "best_validation_accuracy": 61.72,
+    "final_train_accuracy": 64.22967976472208,
+    "final_validation_accuracy": 61.21,
+    "test_accuracy": 63.07,
+    "test_loss": 2.225002318191528,
+    "training_time_seconds": 17620.779127836227,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_5435\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,

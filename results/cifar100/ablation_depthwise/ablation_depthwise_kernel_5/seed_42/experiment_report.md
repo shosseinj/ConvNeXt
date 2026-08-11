@@ -1,16 +1,16 @@
-# Experiment Report: cifar100_ablation_depthwise_kernel_7_seed5435
+# Experiment Report: cifar100_ablation_depthwise_kernel_5_seed42
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar100_ablation_depthwise_kernel_7_seed5435 |
-| Date Time | 2026-08-10T14:50:02+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_7\seed_5435 |
+| Experiment Name | cifar100_ablation_depthwise_kernel_5_seed42 |
+| Date Time | 2026-08-10T16:13:41+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_5\seed_42 |
 | Notes | Analytic TTFS depthwise and downsampling convolutions |
-| Seed | 5435 |
+| Seed | 42 |
 | Status | early_stopped |
-| Updated At | 2026-08-10T16:13:33+03:30 |
+| Updated At | 2026-08-10T17:38:09+03:30 |
 
 ## Dataset
 
@@ -31,11 +31,11 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 21096676 |
+| Parameter Count | 20990692 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
-| Depthwise Kernel Size | 7 |
+| Depthwise Kernel Size | 5 |
 | Depthwise Mode | dense |
 | Downsample Kernel | 3 |
 | Downsample Stride | 2 |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 173 |
-| Best Validation Accuracy | 70.02 |
-| Final Train Accuracy | 67.73569217914756 |
-| Final Validation Accuracy | 69.78 |
-| Test Accuracy | 70.75 |
-| Test Loss | 1.7602331756591796 |
-| Training Time Seconds | 5010.55828332901 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_7\seed_5435\best_checkpoint.pth |
+| Best Epoch | 218 |
+| Best Validation Accuracy | 74.46 |
+| Final Train Accuracy | 71.36834735058285 |
+| Final Validation Accuracy | 74.1 |
+| Test Accuracy | 73.22 |
+| Test Loss | 1.688199732208252 |
+| Training Time Seconds | 5068.756508350372 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_5\seed_42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

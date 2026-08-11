@@ -1,29 +1,29 @@
-# Experiment Report: cifar100_ablation_depthwise_kernel_7_seed5435
+# Experiment Report: tinyimagenet_test_downsample_ttfs_dwconv_dense_seed5435
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | cifar100_ablation_depthwise_kernel_7_seed5435 |
-| Date Time | 2026-08-10T14:50:02+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_7\seed_5435 |
-| Notes | Analytic TTFS depthwise and downsampling convolutions |
+| Experiment Name | tinyimagenet_test_downsample_ttfs_dwconv_dense_seed5435 |
+| Date Time | 2026-08-11T01:56:33+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_5435 |
+| Notes | Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions |
 | Seed | 5435 |
 | Status | early_stopped |
-| Updated At | 2026-08-10T16:13:33+03:30 |
+| Updated At | 2026-08-11T06:50:14+03:30 |
 
 ## Dataset
 
 | Field | Value |
 |---|---|
-| Dataset Name | CIFAR-100 |
-| Number Of Classes | 100 |
-| Input Resolution | [32,32] |
-| Train Sample Count | 45000 |
-| Validation Sample Count | 5000 |
+| Dataset Name | Tiny ImageNet |
+| Number Of Classes | 200 |
+| Input Resolution | [64,64] |
+| Train Sample Count | 90000 |
+| Validation Sample Count | 10000 |
 | Test Sample Count | 10000 |
 | Preprocessing | augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding |
-| Augmentation | training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only |
+| Augmentation | training: RandomCrop(64,padding=8), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only |
 
 ## Architecture
 
@@ -31,11 +31,11 @@
 |---|---|
 | Dims | [96,192,384,768] |
 | Depths | [2,2,6,2] |
-| Parameter Count | 21096676 |
+| Parameter Count | 20996936 |
 | Stem Kernel | 3 |
 | Stem Stride | 1 |
 | Stem Padding | 1 |
-| Depthwise Kernel Size | 7 |
+| Depthwise Kernel Size | 3 |
 | Depthwise Mode | dense |
 | Downsample Kernel | 3 |
 | Downsample Stride | 2 |
@@ -58,7 +58,7 @@
 | Field | Value |
 |---|---|
 | Epochs | 300 |
-| Batch Size | 128 |
+| Batch Size | 32 |
 | Optimizer | AdamW |
 | Learning Rate | 0.0002 |
 | Lr Scheduler | ReduceLROnPlateau(mode=max) |
@@ -82,14 +82,14 @@
 
 | Field | Value |
 |---|---|
-| Best Epoch | 173 |
-| Best Validation Accuracy | 70.02 |
-| Final Train Accuracy | 67.73569217914756 |
-| Final Validation Accuracy | 69.78 |
-| Test Accuracy | 70.75 |
-| Test Loss | 1.7602331756591796 |
-| Training Time Seconds | 5010.55828332901 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\cifar100\ablation_depthwise\ablation_depthwise_kernel_7\seed_5435\best_checkpoint.pth |
+| Best Epoch | 87 |
+| Best Validation Accuracy | 61.72 |
+| Final Train Accuracy | 64.22967976472208 |
+| Final Validation Accuracy | 61.21 |
+| Test Accuracy | 63.07 |
+| Test Loss | 2.225002318191528 |
+| Training Time Seconds | 17620.779127836227 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_5435\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 

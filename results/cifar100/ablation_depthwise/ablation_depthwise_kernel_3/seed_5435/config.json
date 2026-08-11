@@ -1,10 +1,10 @@
 {
-  "data_path": "..\\cifar_data\\tiny-imagenet-200",
-  "output_dir": "results/tinyimagenet/test_downsample_ttfs_dwconv_dense/seed_2344",
+  "data_path": "..\\cifar_data",
+  "output_dir": "results/cifar100/downsample_dense_dwconv_dense/seed_5435",
   "resume": "",
-  "experiment_name": "tinyimagenet_test_downsample_ttfs_dwconv_dense_seed2344",
-  "experiment_notes": "Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions",
-  "dataset": "tinyimagenet",
+  "experiment_name": "cifar100_downsample_dense_dwconv_dense_seed5435",
+  "experiment_notes": "Analytic TTFS depthwise and downsampling convolutions",
+  "dataset": "cifar100",
   "residual_operator": "min",
   "pw1_mode": "ttfs",
   "pw2_mode": "ttfs",
@@ -12,9 +12,9 @@
   "final_score_norm": true,
   "download": false,
   "epochs": 300,
-  "batch_size": 32,
+  "batch_size": 128,
   "num_workers": 4,
-  "seed": 2344,
+  "seed": 5435,
   "lr": 0.0002,
   "min_lr": 1e-06,
   "warmup_epochs": 10,
@@ -58,24 +58,23 @@
   "stage_delays": "0.05,0.02,0.01,0.01",
   "amp": true,
   "device": "cuda",
-  "val_size": 10000,
+  "val_size": 5000,
   "print_freq": 50,
-  "dataset_display_name": "Tiny ImageNet",
-  "num_classes": 200,
-  "input_resolution": [
-    64,
-    64
-  ],
-  "crop_padding": 8,
+  "dataset_display_name": "CIFAR-100",
+  "num_classes": 100,
   "dataset_configuration": {
-    "name": "Tiny ImageNet",
-    "canonical_name": "tinyimagenet",
-    "number_of_classes": 200,
+    "name": "CIFAR-100",
+    "canonical_name": "cifar100",
+    "number_of_classes": 100,
     "input_resolution": [
-      64,
-      64
+      32,
+      32
     ]
   },
+  "input_resolution": [
+    32,
+    32
+  ],
   "stem": {
     "in_channels": 3,
     "kernel_size": 3,
@@ -84,11 +83,11 @@
     "out_channels": 96
   },
   "spatial_schedule": [
-    64,
-    64,
+    32,
     32,
     16,
-    8
+    8,
+    4
   ],
   "depthwise_kernel_size": 3,
   "depthwise_mode": "dense",
@@ -124,52 +123,52 @@
   "delay_gradient_norms_test_backward": [
     {
       "stage": 0,
-      "D_mid": 0.00016132759904348502,
-      "D_out": 0.0005728163776556894
+      "D_mid": 4.2627272629830566e-05,
+      "D_out": 9.70844627661929e-05
     },
     {
       "stage": 1,
-      "D_mid": 0.00029238584162655934,
-      "D_out": 0.0007995495020950078
+      "D_mid": 0.00033142314686210653,
+      "D_out": 0.0009229308533759793
     },
     {
       "stage": 2,
-      "D_mid": 0.00048267581147721865,
-      "D_out": 0.0009204093856420057
+      "D_mid": 0.0006163546480128506,
+      "D_out": 0.0012130669300376815
     },
     {
       "stage": 3,
-      "D_mid": 0.0004867022369706895,
-      "D_out": 0.0006745436344895103
+      "D_mid": 0.0006799191781941557,
+      "D_out": 0.0009770546090927788
     }
   ],
   "ttfs_normalization_mode": "score_layernorm",
   "ttfs_normalization_smoke_test": {
     "logits_shape": [
       2,
-      200
+      100
     ],
     "logits_finite": true,
     "delay_gradient_norms": [
       {
         "stage": 0,
-        "D_mid": 0.00016132759904348502,
-        "D_out": 0.0005728163776556894
+        "D_mid": 4.2627272629830566e-05,
+        "D_out": 9.70844627661929e-05
       },
       {
         "stage": 1,
-        "D_mid": 0.00029238584162655934,
-        "D_out": 0.0007995495020950078
+        "D_mid": 0.00033142314686210653,
+        "D_out": 0.0009229308533759793
       },
       {
         "stage": 2,
-        "D_mid": 0.00048267581147721865,
-        "D_out": 0.0009204093856420057
+        "D_mid": 0.0006163546480128506,
+        "D_out": 0.0012130669300376815
       },
       {
         "stage": 3,
-        "D_mid": 0.0004867022369706895,
-        "D_out": 0.0006745436344895103
+        "D_mid": 0.0006799191781941557,
+        "D_out": 0.0009770546090927788
       }
     ],
     "layernorm_gradient_norms": [
@@ -177,160 +176,160 @@
         "stage": 0,
         "block": 0,
         "parameter": "weight",
+        "gradient_norm": 0.00021416197705548257
+      },
+      {
+        "stage": 0,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.00018040784925688058
+      },
+      {
+        "stage": 0,
+        "block": 1,
+        "parameter": "weight",
         "gradient_norm": 0.0
       },
       {
         "stage": 0,
-        "block": 0,
+        "block": 1,
         "parameter": "bias",
         "gradient_norm": 0.0
       },
       {
-        "stage": 0,
-        "block": 1,
-        "parameter": "weight",
-        "gradient_norm": 0.000676396070048213
-      },
-      {
-        "stage": 0,
-        "block": 1,
-        "parameter": "bias",
-        "gradient_norm": 0.0007585189887322485
-      },
-      {
         "stage": 1,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.0011265050852671266
+        "gradient_norm": 0.003130813129246235
       },
       {
         "stage": 1,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.0014677041908726096
+        "gradient_norm": 0.0037425688933581114
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.003141494933515787
+        "gradient_norm": 0.0025006188079714775
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.003947734367102385
+        "gradient_norm": 0.003082996467128396
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.009477650746703148
+        "gradient_norm": 0.010425645858049393
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.01027713157236576
+        "gradient_norm": 0.013892445713281631
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.005336826201528311
+        "gradient_norm": 0.012461340986192226
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.006096777971833944
+        "gradient_norm": 0.011239525862038136
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "weight",
-        "gradient_norm": 0.005887888837605715
+        "gradient_norm": 0.009652259759604931
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "bias",
-        "gradient_norm": 0.007019614335149527
+        "gradient_norm": 0.010339741595089436
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "weight",
-        "gradient_norm": 0.006559732835739851
+        "gradient_norm": 0.00964796356856823
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "bias",
-        "gradient_norm": 0.008541075512766838
+        "gradient_norm": 0.008421014063060284
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "weight",
-        "gradient_norm": 0.005354670342057943
+        "gradient_norm": 0.008579760789871216
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "bias",
-        "gradient_norm": 0.005490272305905819
+        "gradient_norm": 0.007586813997477293
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "weight",
-        "gradient_norm": 0.006426765117794275
+        "gradient_norm": 0.009057141840457916
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "bias",
-        "gradient_norm": 0.008476965129375458
+        "gradient_norm": 0.009789620526134968
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.018098436295986176
+        "gradient_norm": 0.0214704517275095
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.021372726187109947
+        "gradient_norm": 0.026425253599882126
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.017766883596777916
+        "gradient_norm": 0.02345953695476055
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.017442578449845314
+        "gradient_norm": 0.02902940846979618
       }
     ],
     "final_layernorm_gradient_norms": [
       {
         "parameter": "weight",
-        "gradient_norm": 0.08065377920866013
+        "gradient_norm": 0.09084562957286835
       },
       {
         "parameter": "bias",
-        "gradient_norm": 0.06033498793840408
+        "gradient_norm": 0.07519232481718063
       }
     ],
     "convolution_delay_gradient_norms": []
   },
-  "parameter_count": 20996936,
+  "parameter_count": 20920036,
   "temporal_formulation": "continuous analytic TTFS",
   "simulation_steps": null,
   "mixup_order": "raw images in [0,1], then TTFS encode"

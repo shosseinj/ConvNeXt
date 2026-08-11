@@ -1,8 +1,8 @@
 {
   "data_path": "..\\cifar_data\\tiny-imagenet-200",
-  "output_dir": "results/tinyimagenet/test_downsample_ttfs_dwconv_dense/seed_2344",
+  "output_dir": "results/tinyimagenet/test_downsample_ttfs_dwconv_dense/seed_42",
   "resume": "",
-  "experiment_name": "tinyimagenet_test_downsample_ttfs_dwconv_dense_seed2344",
+  "experiment_name": "tinyimagenet_test_downsample_ttfs_dwconv_dense_seed42",
   "experiment_notes": "Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions",
   "dataset": "tinyimagenet",
   "residual_operator": "min",
@@ -14,7 +14,7 @@
   "epochs": 300,
   "batch_size": 32,
   "num_workers": 4,
-  "seed": 2344,
+  "seed": 42,
   "lr": 0.0002,
   "min_lr": 1e-06,
   "warmup_epochs": 10,
@@ -124,23 +124,23 @@
   "delay_gradient_norms_test_backward": [
     {
       "stage": 0,
-      "D_mid": 0.00016132759904348502,
-      "D_out": 0.0005728163776556894
+      "D_mid": 0.00014705623159354895,
+      "D_out": 0.0005544082194253623
     },
     {
       "stage": 1,
-      "D_mid": 0.00029238584162655934,
-      "D_out": 0.0007995495020950078
+      "D_mid": 0.00015247129396779327,
+      "D_out": 0.0004201551069810828
     },
     {
       "stage": 2,
-      "D_mid": 0.00048267581147721865,
-      "D_out": 0.0009204093856420057
+      "D_mid": 0.0004658829018627791,
+      "D_out": 0.0008858990209542717
     },
     {
       "stage": 3,
-      "D_mid": 0.0004867022369706895,
-      "D_out": 0.0006745436344895103
+      "D_mid": 0.00047978189289688407,
+      "D_out": 0.000700837405137469
     }
   ],
   "ttfs_normalization_mode": "score_layernorm",
@@ -153,23 +153,23 @@
     "delay_gradient_norms": [
       {
         "stage": 0,
-        "D_mid": 0.00016132759904348502,
-        "D_out": 0.0005728163776556894
+        "D_mid": 0.00014705623159354895,
+        "D_out": 0.0005544082194253623
       },
       {
         "stage": 1,
-        "D_mid": 0.00029238584162655934,
-        "D_out": 0.0007995495020950078
+        "D_mid": 0.00015247129396779327,
+        "D_out": 0.0004201551069810828
       },
       {
         "stage": 2,
-        "D_mid": 0.00048267581147721865,
-        "D_out": 0.0009204093856420057
+        "D_mid": 0.0004658829018627791,
+        "D_out": 0.0008858990209542717
       },
       {
         "stage": 3,
-        "D_mid": 0.0004867022369706895,
-        "D_out": 0.0006745436344895103
+        "D_mid": 0.00047978189289688407,
+        "D_out": 0.000700837405137469
       }
     ],
     "layernorm_gradient_norms": [
@@ -177,155 +177,155 @@
         "stage": 0,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.0
+        "gradient_norm": 4.550858250240708e-07
       },
       {
         "stage": 0,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.0
+        "gradient_norm": 5.400119107434875e-07
       },
       {
         "stage": 0,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.000676396070048213
+        "gradient_norm": 0.0004017929022666067
       },
       {
         "stage": 0,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.0007585189887322485
+        "gradient_norm": 0.0005444073467515409
       },
       {
         "stage": 1,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.0011265050852671266
+        "gradient_norm": 0.0007841844926588237
       },
       {
         "stage": 1,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.0014677041908726096
+        "gradient_norm": 0.0013532234588637948
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.003141494933515787
+        "gradient_norm": 0.0014040338573977351
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.003947734367102385
+        "gradient_norm": 0.0015538850566372275
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.009477650746703148
+        "gradient_norm": 0.006951593328267336
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.01027713157236576
+        "gradient_norm": 0.008209768682718277
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.005336826201528311
+        "gradient_norm": 0.007882666774094105
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.006096777971833944
+        "gradient_norm": 0.00856346357613802
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "weight",
-        "gradient_norm": 0.005887888837605715
+        "gradient_norm": 0.0060951486229896545
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "bias",
-        "gradient_norm": 0.007019614335149527
+        "gradient_norm": 0.006186048500239849
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "weight",
-        "gradient_norm": 0.006559732835739851
+        "gradient_norm": 0.0058046369813382626
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "bias",
-        "gradient_norm": 0.008541075512766838
+        "gradient_norm": 0.006113626528531313
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "weight",
-        "gradient_norm": 0.005354670342057943
+        "gradient_norm": 0.012276698835194111
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "bias",
-        "gradient_norm": 0.005490272305905819
+        "gradient_norm": 0.00815613940358162
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "weight",
-        "gradient_norm": 0.006426765117794275
+        "gradient_norm": 0.00887551624327898
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "bias",
-        "gradient_norm": 0.008476965129375458
+        "gradient_norm": 0.008179175667464733
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.018098436295986176
+        "gradient_norm": 0.01650274731218815
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.021372726187109947
+        "gradient_norm": 0.01937701739370823
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.017766883596777916
+        "gradient_norm": 0.015857839956879616
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.017442578449845314
+        "gradient_norm": 0.019753823056817055
       }
     ],
     "final_layernorm_gradient_norms": [
       {
         "parameter": "weight",
-        "gradient_norm": 0.08065377920866013
+        "gradient_norm": 0.09028295427560806
       },
       {
         "parameter": "bias",
-        "gradient_norm": 0.06033498793840408
+        "gradient_norm": 0.0590682178735733
       }
     ],
     "convolution_delay_gradient_norms": []

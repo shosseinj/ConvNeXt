@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_7\\seed_5435",
     "notes": "Analytic TTFS depthwise and downsampling convolutions",
     "seed": 5435,
-    "status": "running",
-    "updated_at": "2026-08-10T15:36:50+03:30"
+    "status": "early_stopped",
+    "updated_at": "2026-08-10T16:13:33+03:30"
   },
   "dataset": {
     "dataset_name": "CIFAR-100",
@@ -84,13 +84,13 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 105,
-    "best_validation_accuracy": 67.18,
-    "final_train_accuracy": 54.87543120062398,
-    "final_validation_accuracy": 67.18,
-    "test_accuracy": null,
-    "test_loss": null,
-    "training_time_seconds": 2808.1363322734833,
+    "best_epoch": 173,
+    "best_validation_accuracy": 70.02,
+    "final_train_accuracy": 67.73569217914756,
+    "final_validation_accuracy": 69.78,
+    "test_accuracy": 70.75,
+    "test_loss": 1.7602331756591796,
+    "training_time_seconds": 5010.55828332901,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_depthwise\\ablation_depthwise_kernel_7\\seed_5435\\best_checkpoint.pth"
   },
   "optional_evaluation": {
