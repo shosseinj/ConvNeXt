@@ -174,7 +174,9 @@ def args_parser():
     )
     parser.add_argument("--data_path", default="../cifar_data")
     parser.add_argument("--output_dir", default="")
-    parser.add_argument("--resume", default="")
+    checkpoint_group = parser.add_mutually_exclusive_group()
+    checkpoint_group.add_argument("--resume", default="")
+    checkpoint_group.add_argument("--pretrained_checkpoint", default="")
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
     parser.add_argument("--dataset", type=dataset_name, default="cifar10")
@@ -578,6 +580,241 @@ def actual_stage_delays(model):
     return values
 
 
+def _checkpoint_state(checkpoint):
+    if not isinstance(checkpoint, dict):
+        raise ValueError("Pretrained checkpoint must be a dictionary")
+    state_name = "ema" if checkpoint.get("ema") is not None else "model"
+    state = checkpoint.get(state_name)
+    if not isinstance(state, dict) or not state:
+        raise ValueError(
+            "Pretrained checkpoint must contain a non-empty EMA or model state"
+        )
+    return state_name, state
+
+
+def _legacy_convolution_mode(state, field):
+    if field == "dwconv_mode":
+        ttfs = any(".dwconv.D_conv" in key for key in state)
+        dense = any(
+            key.startswith("stages.")
+            and ".dwconv.weight" in key
+            for key in state
+        )
+    else:
+        ttfs = any(
+            key.startswith("downsample_layers.") and key.endswith(".D_conv")
+            for key in state
+        )
+        dense = any(
+            key.startswith("downsample_layers.")
+            and key.endswith(".0.weight")
+            for key in state
+        )
+    if ttfs == dense:
+        raise ValueError(
+            f"Cannot determine pretrained checkpoint {field} from state dict"
+        )
+    return "ttfs" if ttfs else "dense"
+
+
+def _canonical_pw1_mode(value):
+    normalized = str(value).strip().lower().replace("_", " ")
+    return "ttfs" if "ttfs" in normalized else normalized
+
+
+def validate_pretrained_architecture(checkpoint, args):
+    _, state = _checkpoint_state(checkpoint)
+    architecture = checkpoint.get("architecture") or {}
+    if not isinstance(architecture, dict):
+        raise ValueError("Pretrained checkpoint architecture must be a dictionary")
+    source_args = checkpoint.get("args") or {}
+    if not isinstance(source_args, dict):
+        raise ValueError("Pretrained checkpoint args must be a dictionary")
+
+    dwconv_mode = str(
+        architecture.get(
+            "dwconv_mode",
+            source_args.get("dwconv_mode") or _legacy_convolution_mode(state, "dwconv_mode"),
+        )
+    ).lower()
+    downsample_mode = str(
+        architecture.get(
+            "downsample_mode",
+            source_args.get("downsample_mode")
+            or _legacy_convolution_mode(state, "downsample_mode"),
+        )
+    ).lower()
+    if dwconv_mode != "dense":
+        raise ValueError("Pretrained checkpoint must use dense depthwise convolution")
+    if downsample_mode != "dense":
+        raise ValueError("Pretrained checkpoint must use dense downsampling convolution")
+    if args.dwconv_mode != "ttfs" or args.downsample_mode != "ttfs":
+        raise ValueError(
+            "Pretrained dense conversion requires TTFS depthwise and downsampling modes"
+        )
+
+    source_num_classes = architecture.get("num_classes")
+    if source_num_classes is None:
+        source_num_classes = source_args.get("num_classes")
+    if source_num_classes is None and "head.weight" in state:
+        source_num_classes = state["head.weight"].shape[0]
+
+    comparisons = {
+        "num_classes": (source_num_classes, args.num_classes),
+        "dims": (architecture.get("dims", source_args.get("dims")), list(args.dims)),
+        "depths": (architecture.get("depths", source_args.get("depths")), list(args.depths)),
+        "depthwise_kernel_size": (
+            architecture.get("depthwise_kernel_size", source_args.get("dw_kernel_size")),
+            args.dw_kernel_size,
+        ),
+        "pw2_mode": (
+            architecture.get("pw2_mode", source_args.get("pw2_mode")),
+            args.pw2_mode,
+        ),
+        "ttfs_norm_mode": (
+            architecture.get("ttfs_norm_mode", source_args.get("ttfs_norm_mode")),
+            args.ttfs_norm_mode,
+        ),
+        "final_score_norm": (
+            architecture.get("final_score_norm", source_args.get("final_score_norm", False)),
+            args.final_score_norm,
+        ),
+        "residual_operator": (
+            architecture.get("residual_operator", source_args.get("residual_operator", "min")),
+            getattr(args, "residual_operator", "min"),
+        ),
+        "input_resolution": (
+            architecture.get(
+                "input_resolution",
+                [args.input_resolution, args.input_resolution],
+            ),
+            [args.input_resolution, args.input_resolution],
+        ),
+        "stage_delays": (
+            architecture.get("stage_delays", source_args.get("stage_delays")),
+            [float(value) for value in args.stage_delays.split(",")],
+        ),
+    }
+    mismatches = []
+    for field, (source, target) in comparisons.items():
+        if field in {"dims", "depths", "input_resolution"} and source is not None:
+            source = list(source)
+        if field == "stage_delays" and isinstance(source, str):
+            source = [float(value) for value in source.split(",")]
+        if source != target:
+            mismatches.append(f"{field}: source={source!r}, target={target!r}")
+
+    source_pw1 = _canonical_pw1_mode(source_args.get("pw1_mode", "ttfs"))
+    target_pw1 = _canonical_pw1_mode(args.pw1_mode)
+    if source_pw1 != target_pw1:
+        mismatches.append(
+            f"pw1_mode: source={source_pw1!r}, target={target_pw1!r}"
+        )
+
+    source_dataset = source_args.get("dataset")
+    if source_dataset is not None:
+        try:
+            source_dataset = dataset_name(source_dataset)
+        except argparse.ArgumentTypeError:
+            display_aliases = {
+                "cifar-10": "cifar10",
+                "cifar-100": "cifar100",
+                "tiny imagenet": "tinyimagenet",
+            }
+            source_dataset = display_aliases.get(str(source_dataset).strip().lower())
+        if source_dataset != args.dataset:
+            mismatches.append(
+                f"dataset: source={source_dataset!r}, target={args.dataset!r}"
+            )
+
+    if mismatches:
+        raise ValueError(
+            "Pretrained checkpoint architecture does not match target: "
+            + "; ".join(mismatches)
+        )
+
+
+def _dense_to_ttfs_key(source_key):
+    fields = source_key.split(".")
+    if (
+        len(fields) >= 5
+        and fields[0] == "stages"
+        and fields[3] == "dwconv"
+        and fields[4] in {"weight", "bias"}
+    ):
+        return ".".join(fields[:4] + ["conv"] + fields[4:])
+    if (
+        len(fields) >= 4
+        and fields[0] == "downsample_layers"
+        and fields[1] in {"1", "2", "3"}
+        and fields[2] == "0"
+        and fields[3] in {"weight", "bias"}
+    ):
+        return ".".join(fields[:3] + ["conv"] + fields[3:])
+    return source_key
+
+
+def convert_dense_checkpoint_to_ttfs(model, checkpoint, args):
+    validate_pretrained_architecture(checkpoint, args)
+    source_name, source_state = _checkpoint_state(checkpoint)
+    target_state = model.state_dict()
+    delay_keys = sorted(key for key in target_state if key.endswith(".D_conv"))
+    converted = {
+        key: tensor.clone()
+        for key, tensor in target_state.items()
+        if key in delay_keys
+    }
+    unused = []
+    for source_key, source_tensor in source_state.items():
+        target_key = _dense_to_ttfs_key(source_key)
+        if target_key not in target_state:
+            unused.append(source_key)
+            continue
+        if source_tensor.shape != target_state[target_key].shape:
+            raise ValueError(
+                f"Shape mismatch for {source_key} -> {target_key}: "
+                f"source={tuple(source_tensor.shape)}, "
+                f"target={tuple(target_state[target_key].shape)}"
+            )
+        if target_key in converted:
+            raise ValueError(f"Source checkpoint unexpectedly supplies {target_key}")
+        converted[target_key] = source_tensor
+
+    if unused:
+        raise ValueError(
+            "Pretrained checkpoint contains unused source parameters: "
+            + ", ".join(sorted(unused))
+        )
+    missing_transfers = sorted(set(target_state) - set(converted))
+    if missing_transfers:
+        raise ValueError(
+            "Pretrained conversion did not initialize target parameters: "
+            + ", ".join(missing_transfers)
+        )
+
+    incompatible = model.load_state_dict(converted, strict=True)
+    return {
+        "source_state": source_name,
+        "source_parameter_keys": len(source_state),
+        "transferred_parameter_keys": len(source_state),
+        "initialized_delay_keys": delay_keys,
+        "missing_keys": list(incompatible.missing_keys),
+        "unexpected_keys": list(incompatible.unexpected_keys),
+    }
+
+
+def apply_pretrained_lineage(args, checkpoint):
+    initialization = checkpoint.get("pretrained_initialization")
+    if not isinstance(initialization, dict):
+        return None
+    initialization = copy.deepcopy(initialization)
+    args.pretrained_initialization = initialization
+    source_checkpoint = initialization.get("source_checkpoint")
+    if source_checkpoint:
+        args.pretrained_checkpoint = str(source_checkpoint)
+    return initialization
+
+
 def delay_gradient_diagnostic(model, args, device):
     cpu_rng_state = torch.random.get_rng_state()
     cuda_rng_states = torch.cuda.get_rng_state_all() if device.type == "cuda" else None
@@ -732,7 +969,11 @@ def create_experiment_report(
             "output_directory": str(output_dir.resolve()),
             "notes": experiment_notes,
             "seed": args.seed,
-            "status": "resumed" if args.resume else "running",
+            "status": (
+                "resumed"
+                if args.resume
+                else "fine_tuning" if args.pretrained_checkpoint else "running"
+            ),
             "updated_at": local_timestamp(),
         },
         "dataset": {
@@ -802,6 +1043,10 @@ def create_experiment_report(
             "early_stopping_patience": args.early_stopping_patience,
             "ema_enabled": args.ema,
             "ema_decay": args.ema_decay if args.ema else None,
+            "pretrained_checkpoint": args.pretrained_checkpoint or None,
+            "pretrained_initialization": getattr(
+                args, "pretrained_initialization", None
+            ),
         },
         "results": {
             "best_epoch": previous_results.get("best_epoch"),
@@ -938,6 +1183,9 @@ def save_checkpoint(
             "epochs_without_improvement": epochs_without_improvement,
             "architecture": architecture_metadata(args),
             "args": vars(args),
+            "pretrained_initialization": getattr(
+                args, "pretrained_initialization", None
+            ),
         },
         temporary_path,
     )
@@ -957,6 +1205,37 @@ def main():
     )
     train_loader, validation_loader, test_loader = build_loaders(args)
     model = make_model(args).to(device)
+    pretrained_initialization = None
+    if args.pretrained_checkpoint:
+        pretrained_path = Path(args.pretrained_checkpoint)
+        if not pretrained_path.is_file():
+            raise FileNotFoundError(
+                f"Pretrained checkpoint does not exist: {pretrained_path}"
+            )
+        pretrained_checkpoint = torch.load(
+            pretrained_path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        pretrained_initialization = convert_dense_checkpoint_to_ttfs(
+            model,
+            pretrained_checkpoint,
+            args,
+        )
+        pretrained_initialization["source_checkpoint"] = str(
+            pretrained_path.resolve()
+        )
+        args.pretrained_initialization = pretrained_initialization
+        print(
+            "Initialized fully TTFS model from dense checkpoint: "
+            f"{pretrained_initialization['source_checkpoint']}"
+        )
+        print(
+            "Transferred parameter keys: "
+            f"{pretrained_initialization['transferred_parameter_keys']}; "
+            "initialized convolution delay tensors: "
+            f"{len(pretrained_initialization['initialized_delay_keys'])}"
+        )
 
     # Verify native input resolution, unchanged stride-1 stem, and stage schedule.
     shapes = {}
@@ -1065,6 +1344,9 @@ def main():
 
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
+        restored_initialization = apply_pretrained_lineage(args, checkpoint)
+        if restored_initialization is not None:
+            pretrained_initialization = restored_initialization
         validate_resume_architecture(checkpoint, args)
         model.load_state_dict(checkpoint["model"], strict=True)
         optimizer.load_state_dict(checkpoint["optimizer"])
@@ -1137,6 +1419,7 @@ def main():
         "temporal_formulation": "continuous analytic TTFS",
         "simulation_steps": None,
         "mixup_order": "raw images in [0,1], then TTFS encode",
+        "pretrained_initialization": pretrained_initialization,
     }
     (output_dir / "config.json").write_text(
         json.dumps(config, indent=2), encoding="utf-8"

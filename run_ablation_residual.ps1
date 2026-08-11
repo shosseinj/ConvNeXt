@@ -1,10 +1,10 @@
 $dataset = "cifar100"
-$downsample_mode = "dense"
-$dwconv_mode = "dense"
+$downsample_mode = "ttfs"
+$dwconv_mode = "ttfs"
 $kernel_size = 3
 
 $seeds = @(42, 2344, 5435)
-$residual_operators = @("mean", "learnable_gate")
+$residual_operators = @("min", "learnable_gate","mean")
 
 foreach ($seed in $seeds) {
     foreach  ($residual_operator in $residual_operators) {
