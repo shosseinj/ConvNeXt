@@ -1,0 +1,16 @@
+{
+  "best_epoch": 125,
+  "last_epoch": 155,
+  "best_validation_accuracy": 63.43,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 2.2396296459197997,
+    "accuracy": 62.81,
+    "samples": 10000,
+    "seconds": 16.985163688659668
+  },
+  "best_checkpoint": "results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\best_checkpoint.pth",
+  "last_checkpoint": "results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\last_checkpoint.pth"
+}

@@ -21,6 +21,10 @@ from models.convnext import (
     SpikingBlock,
     ContinuousTTFSConv2d,
 )
+from train_continuous_ttfs_cifar10_32x32_stem1 import (
+    TinyImageNetValidationDataset,
+    resolve_tinyimagenet_root,
+)
 
 
 class _TerminalAndFileWriter:
@@ -318,39 +322,18 @@ def build_loader(
         "tiny_imagenet",
         "tiny-imagenet",
     }:
-
-        root = Path(data_path)
-
-        # Expected:
-        # tiny-imagenet-200/
-        #     val/
-        #         class_folder/
-        #             image.JPEG
-        #
-        # If your validation folder is already rearranged
-        # into ImageFolder format, this works directly.
-
-        val_path = root / "val"
-
-        if not val_path.exists():
-            raise FileNotFoundError(
-                f"Tiny ImageNet validation folder not found:\n{val_path}"
+        root = resolve_tinyimagenet_root(data_path)
+        train_dataset = datasets.ImageFolder(root / "train")
+        if len(train_dataset.classes) != 200:
+            raise ValueError(
+                "Tiny ImageNet training directory must contain exactly 200 classes, "
+                f"found {len(train_dataset.classes)}"
             )
-
-        dataset = datasets.ImageFolder(
-            root=str(val_path),
+        dataset = TinyImageNetValidationDataset(
+            root / "val",
+            train_dataset.class_to_idx,
             transform=transform,
         )
-
-        if len(dataset.classes) != 200:
-            print(
-                f"WARNING: Tiny ImageNet loader found "
-                f"{len(dataset.classes)} classes instead of 200."
-            )
-            print(
-                "The official Tiny ImageNet val folder may need "
-                "to be reorganized into class subfolders."
-            )
 
     else:
 

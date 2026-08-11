@@ -11,6 +11,7 @@ from train_continuous_ttfs_cifar10_32x32_stem1 import (
     dataset_name,
     make_model,
 )
+from Evaluation.evaluate_sparsity import build_loader as build_evaluation_loader
 
 
 TINY_ROOT = Path(
@@ -83,6 +84,21 @@ class TinyImageNetTrainingTests(unittest.TestCase):
         self.assertEqual(tuple(logits.shape), (1, 200))
         self.assertEqual(metadata["num_classes"], 200)
         self.assertEqual(metadata["input_resolution"], [64, 64])
+
+    @unittest.skipUnless(TINY_ROOT.is_dir(), "Tiny ImageNet dataset is unavailable")
+    def test_evaluator_uses_all_200_official_validation_labels(self):
+        dataset, loader = build_evaluation_loader(
+            dataset_name="tinyimagenet",
+            data_path=str(TINY_ROOT),
+            batch_size=4,
+            workers=0,
+        )
+
+        self.assertEqual(len(dataset), 10000)
+        self.assertEqual(len({target for _, target in dataset.samples}), 200)
+        images, labels = next(iter(loader))
+        self.assertEqual(tuple(images.shape), (4, 3, 64, 64))
+        self.assertTrue(torch.all((0 <= labels) & (labels < 200)))
 
 
 if __name__ == "__main__":

@@ -5,8 +5,8 @@
     "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42",
     "notes": "Native 64x64 Tiny ImageNet with analytic TTFS downsampling and dense depthwise convolutions",
     "seed": 42,
-    "status": "running",
-    "updated_at": "2026-08-11T08:42:11+03:30"
+    "status": "early_stopped",
+    "updated_at": "2026-08-11T13:40:43+03:30"
   },
   "dataset": {
     "dataset_name": "Tiny ImageNet",
@@ -84,13 +84,13 @@
     "ema_decay": 0.9998
   },
   "results": {
-    "best_epoch": 42,
-    "best_validation_accuracy": 58.1,
-    "final_train_accuracy": 40.73557507329004,
-    "final_validation_accuracy": 58.1,
-    "test_accuracy": null,
-    "test_loss": null,
-    "training_time_seconds": 6710.844173908234,
+    "best_epoch": 125,
+    "best_validation_accuracy": 63.43,
+    "final_train_accuracy": 67.29927250428817,
+    "final_validation_accuracy": 63.43,
+    "test_accuracy": 62.81,
+    "test_loss": 2.2396296459197997,
+    "training_time_seconds": 24622.862092494965,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\best_checkpoint.pth"
   },
   "optional_evaluation": {
