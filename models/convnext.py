@@ -951,6 +951,14 @@ def call_spiking_torch(tj, W, D_i, t_min_prev, t_min, t_max):
     return ti
 
 
+def call_spiking_linear(tj, weight, D_i, t_min, t_max):
+    """Apply the analytic TTFS transform using native Linear weight layout."""
+    threshold = (t_max - t_min) - D_i
+    delta = tj - t_min
+    ti = F.linear(delta, weight, bias=None) + threshold + t_min
+    return torch.where(ti < t_max, ti, t_max)
+
+
 class ContinuousTTFSConv2d(nn.Module):
     """Continuous analytic TTFS mapping with Conv2d connectivity."""
 
@@ -1322,15 +1330,18 @@ class SpikingBlock(nn.Module):
         # pw1
         # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
         # optionally enforce non-negative pointwise weights (encourages sparsity / pruning)
-        W1 = (torch.relu(self.pw1.weight) if self.force_positive_weights else self.pw1.weight).t().contiguous()  # (C_in, C_mid)
+        W1 = (
+            torch.relu(self.pw1.weight)
+            if self.force_positive_weights else self.pw1.weight
+        )
         device = x_flat.device
         dtype = x_flat.dtype
         # Smooth bounded delay: max_delay * sigmoid(raw_delay).
         D_mid = self._bounded_delay(self.D_mid, device=device, dtype=dtype)
-        t_min = torch.tensor(self.t_min, device=device, dtype=dtype)
-        t_max = torch.tensor(self.t_max, device=device, dtype=dtype)
-        t_mid = call_spiking_torch(x_flat, W1, D_mid, None, t_min, t_max)
-        self.t_mid_spike = t_mid.detach()
+        t_mid = call_spiking_linear(
+            x_flat, W1, D_mid, self.t_min, self.t_max
+        )
+        self.t_mid_spike = None if self.training else t_mid.detach()
 
         # pw2 is either the legacy TTFS transform or a dense score projection.
         # Dense mode matches ConvNeXt's linear second pointwise projection: it
@@ -1339,12 +1350,12 @@ class SpikingBlock(nn.Module):
             W2 = (
                 torch.relu(self.pw2.weight)
                 if self.force_positive_weights else self.pw2.weight
-            ).t().contiguous()
+            )
             D_out = self._bounded_delay(
                 self.D_out, device=device, dtype=dtype
             )
-            t_out = call_spiking_torch(
-                t_mid, W2, D_out, None, t_min, t_max
+            t_out = call_spiking_linear(
+                t_mid, W2, D_out, self.t_min, self.t_max
             )
         else:
             scores_mid = -t_mid
@@ -1355,7 +1366,7 @@ class SpikingBlock(nn.Module):
             else:
                 scores_out = self.pw2(scores_mid)
             t_out = torch.clamp(-scores_out, self.t_min, self.t_max)
-        self.t_out_spike = t_out.detach()
+        self.t_out_spike = None if self.training else t_out.detach()
 
         # reshape back
         t_out = t_out.view(N, H, W, -1).permute(0, 3, 1, 2).contiguous()

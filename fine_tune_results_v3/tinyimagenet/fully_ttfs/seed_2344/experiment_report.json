@@ -1,12 +1,12 @@
 {
   "experiment": {
-    "experiment_name": "tinyimagenet_fully_ttfs_seed42",
-    "date_time": "2026-08-12T06:54:11+03:30",
-    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_42",
+    "experiment_name": "tinyimagenet_fully_ttfs_seed2344",
+    "date_time": "2026-08-15T10:10:10+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_2344",
     "notes": "Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint",
-    "seed": 42,
-    "status": "early_stopped",
-    "updated_at": "2026-08-15T10:09:22+03:30"
+    "seed": 2344,
+    "status": "running",
+    "updated_at": "2026-08-15T11:16:15+03:30"
   },
   "dataset": {
     "dataset_name": "Tiny ImageNet",
@@ -83,7 +83,7 @@
     "early_stopping_patience": 30,
     "ema_enabled": false,
     "ema_decay": null,
-    "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\best_checkpoint.pth",
+    "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth",
     "pretrained_initialization": {
       "source_state": "ema",
       "source_parameter_keys": 144,
@@ -107,18 +107,18 @@
       ],
       "missing_keys": [],
       "unexpected_keys": [],
-      "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\best_checkpoint.pth"
+      "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth"
     }
   },
   "results": {
-    "best_epoch": 126,
-    "best_validation_accuracy": 62.38,
-    "final_train_accuracy": 69.83685968496164,
-    "final_validation_accuracy": 62.25,
-    "test_accuracy": 61.79,
-    "test_loss": 2.3659063442230224,
-    "training_time_seconds": 24351.42809486389,
-    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_42\\best_checkpoint.pth"
+    "best_epoch": 22,
+    "best_validation_accuracy": 59.54,
+    "final_train_accuracy": 59.37348529395631,
+    "final_validation_accuracy": 59.34,
+    "test_accuracy": null,
+    "test_loss": null,
+    "training_time_seconds": 3811.035980939865,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_2344\\best_checkpoint.pth"
   },
   "optional_evaluation": {
     "activation_sparsity": null,

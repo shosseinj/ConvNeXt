@@ -1,16 +1,16 @@
-# Experiment Report: tinyimagenet_fully_ttfs_seed42
+# Experiment Report: tinyimagenet_fully_ttfs_seed2344
 
 ## Experiment Information
 
 | Field | Value |
 |---|---|
-| Experiment Name | tinyimagenet_fully_ttfs_seed42 |
-| Date Time | 2026-08-12T06:54:11+03:30 |
-| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_42 |
+| Experiment Name | tinyimagenet_fully_ttfs_seed2344 |
+| Date Time | 2026-08-15T10:10:10+03:30 |
+| Output Directory | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_2344 |
 | Notes | Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint |
-| Seed | 42 |
-| Status | early_stopped |
-| Updated At | 2026-08-15T10:09:22+03:30 |
+| Seed | 2344 |
+| Status | running |
+| Updated At | 2026-08-15T11:16:15+03:30 |
 
 ## Dataset
 
@@ -78,21 +78,21 @@
 | Early Stopping Patience | 30 |
 | Ema Enabled | false |
 | Ema Decay | unknown |
-| Pretrained Checkpoint | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_42\best_checkpoint.pth |
-| Pretrained Initialization | {"source_state":"ema","source_parameter_keys":144,"transferred_parameter_keys":144,"initialized_delay_keys":["downsample_layers.1.0.D_conv","downsample_layers.2.0.D_conv","downsample_layers.3.0.D_conv","stages.0.0.dwconv.D_conv","stages.0.1.dwconv.D_conv","stages.1.0.dwconv.D_conv","stages.1.1.dwconv.D_conv","stages.2.0.dwconv.D_conv","stages.2.1.dwconv.D_conv","stages.2.2.dwconv.D_conv","stages.2.3.dwconv.D_conv","stages.2.4.dwconv.D_conv","stages.2.5.dwconv.D_conv","stages.3.0.dwconv.D_conv","stages.3.1.dwconv.D_conv"],"missing_keys":[],"unexpected_keys":[],"source_checkpoint":"C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_42\\best_checkpoint.pth"} |
+| Pretrained Checkpoint | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_2344\best_checkpoint.pth |
+| Pretrained Initialization | {"source_state":"ema","source_parameter_keys":144,"transferred_parameter_keys":144,"initialized_delay_keys":["downsample_layers.1.0.D_conv","downsample_layers.2.0.D_conv","downsample_layers.3.0.D_conv","stages.0.0.dwconv.D_conv","stages.0.1.dwconv.D_conv","stages.1.0.dwconv.D_conv","stages.1.1.dwconv.D_conv","stages.2.0.dwconv.D_conv","stages.2.1.dwconv.D_conv","stages.2.2.dwconv.D_conv","stages.2.3.dwconv.D_conv","stages.2.4.dwconv.D_conv","stages.2.5.dwconv.D_conv","stages.3.0.dwconv.D_conv","stages.3.1.dwconv.D_conv"],"missing_keys":[],"unexpected_keys":[],"source_checkpoint":"C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth"} |
 
 ## Results
 
 | Field | Value |
 |---|---|
-| Best Epoch | 126 |
-| Best Validation Accuracy | 62.38 |
-| Final Train Accuracy | 69.83685968496164 |
-| Final Validation Accuracy | 62.25 |
-| Test Accuracy | 61.79 |
-| Test Loss | 2.3659063442230224 |
-| Training Time Seconds | 24351.42809486389 |
-| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_42\best_checkpoint.pth |
+| Best Epoch | 22 |
+| Best Validation Accuracy | 59.54 |
+| Final Train Accuracy | 59.37348529395631 |
+| Final Validation Accuracy | 59.34 |
+| Test Accuracy | unknown |
+| Test Loss | unknown |
+| Training Time Seconds | 3811.035980939865 |
+| Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_2344\best_checkpoint.pth |
 
 ## Optional Evaluation Results
 
