@@ -6,7 +6,7 @@
     "notes": "Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint",
     "seed": 42,
     "status": "running",
-    "updated_at": "2026-08-12T12:50:45+03:30"
+    "updated_at": "2026-08-15T09:29:51+03:30"
   },
   "dataset": {
     "dataset_name": "Tiny ImageNet",
@@ -113,11 +113,11 @@
   "results": {
     "best_epoch": 126,
     "best_validation_accuracy": 62.38,
-    "final_train_accuracy": 69.83313473214301,
-    "final_validation_accuracy": 62.16,
+    "final_train_accuracy": 69.50861126138938,
+    "final_validation_accuracy": 62.08,
     "test_accuracy": null,
     "test_loss": null,
-    "training_time_seconds": 21394.093385219574,
+    "training_time_seconds": 22224.217635154724,
     "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_42\\best_checkpoint.pth"
   },
   "optional_evaluation": {

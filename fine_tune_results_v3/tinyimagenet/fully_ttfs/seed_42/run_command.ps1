@@ -92,5 +92,5 @@
   'true' `
   '--device' `
   'cuda' `
-  '--pretrained_checkpoint' `
-  'C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\results\tinyimagenet\test_downsample_ttfs_dwconv_dense\seed_42\best_checkpoint.pth'
+  '--resume' `
+  'C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_42\last_checkpoint.pth'

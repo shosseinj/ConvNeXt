@@ -10,7 +10,7 @@
 | Notes | Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint |
 | Seed | 42 |
 | Status | running |
-| Updated At | 2026-08-12T12:50:45+03:30 |
+| Updated At | 2026-08-15T09:29:51+03:30 |
 
 ## Dataset
 
@@ -87,11 +87,11 @@
 |---|---|
 | Best Epoch | 126 |
 | Best Validation Accuracy | 62.38 |
-| Final Train Accuracy | 69.83313473214301 |
-| Final Validation Accuracy | 62.16 |
+| Final Train Accuracy | 69.50861126138938 |
+| Final Validation Accuracy | 62.08 |
 | Test Accuracy | unknown |
 | Test Loss | unknown |
-| Training Time Seconds | 21394.093385219574 |
+| Training Time Seconds | 22224.217635154724 |
 | Checkpoint Path | C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\tinyimagenet\fully_ttfs\seed_42\best_checkpoint.pth |
 
 ## Optional Evaluation Results
