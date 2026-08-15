@@ -1,0 +1,128 @@
+{
+  "experiment": {
+    "experiment_name": "cifar10_fully_ttfs_seed6543",
+    "date_time": "2026-08-11T22:46:06+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v2\\cifar10\\fully_ttfs\\seed_6543",
+    "notes": "Differential-LR fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint",
+    "seed": 6543,
+    "status": "running",
+    "updated_at": "2026-08-11T22:53:38+03:30"
+  },
+  "dataset": {
+    "dataset_name": "CIFAR-10",
+    "number_of_classes": 10,
+    "input_resolution": [
+      32,
+      32
+    ],
+    "train_sample_count": 45000,
+    "validation_sample_count": 5000,
+    "test_sample_count": 10000,
+    "preprocessing": "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding",
+    "augmentation": "training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only"
+  },
+  "architecture": {
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "parameter_count": 20856586,
+    "stem_kernel": 3,
+    "stem_stride": 1,
+    "stem_padding": 1,
+    "depthwise_kernel_size": 3,
+    "depthwise_mode": "ttfs",
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "downsample_mode": "ttfs",
+    "residual_operator": "min",
+    "pw1_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "spike_dropout": 0.0,
+    "delay_enabled": true,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "t_min": 0.0,
+    "t_max": 1.0
+  },
+  "training": {
+    "epochs": 200,
+    "batch_size": 128,
+    "optimizer": "AdamW",
+    "learning_rate": 2e-05,
+    "convolution_delay_learning_rate": 0.0001,
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 6,
+    "lr_scheduler_factor": 0.7,
+    "minimum_learning_rate": 1e-06,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "head_dropout": 0.1,
+    "mixup_alpha": 0.2,
+    "cutmix_alpha": 1.0,
+    "randaugment": true,
+    "randaugment_num_ops": 2,
+    "randaugment_magnitude": 9,
+    "random_erasing": 0.1,
+    "early_stopping_patience": 25,
+    "ema_enabled": false,
+    "ema_decay": null,
+    "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_dense_dwconv_dense\\seed_6543\\best_checkpoint.pth",
+    "pretrained_initialization": {
+      "source_state": "ema",
+      "source_parameter_keys": 144,
+      "transferred_parameter_keys": 144,
+      "initialized_delay_keys": [
+        "downsample_layers.1.0.D_conv",
+        "downsample_layers.2.0.D_conv",
+        "downsample_layers.3.0.D_conv",
+        "stages.0.0.dwconv.D_conv",
+        "stages.0.1.dwconv.D_conv",
+        "stages.1.0.dwconv.D_conv",
+        "stages.1.1.dwconv.D_conv",
+        "stages.2.0.dwconv.D_conv",
+        "stages.2.1.dwconv.D_conv",
+        "stages.2.2.dwconv.D_conv",
+        "stages.2.3.dwconv.D_conv",
+        "stages.2.4.dwconv.D_conv",
+        "stages.2.5.dwconv.D_conv",
+        "stages.3.0.dwconv.D_conv",
+        "stages.3.1.dwconv.D_conv"
+      ],
+      "missing_keys": [],
+      "unexpected_keys": [],
+      "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar10\\downsample_dense_dwconv_dense\\seed_6543\\best_checkpoint.pth"
+    }
+  },
+  "results": {
+    "best_epoch": 19,
+    "best_validation_accuracy": 91.86,
+    "final_train_accuracy": 73.18952471548626,
+    "final_validation_accuracy": 91.86,
+    "test_accuracy": null,
+    "test_loss": null,
+    "training_time_seconds": 451.3966028690338,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v2\\cifar10\\fully_ttfs\\seed_6543\\best_checkpoint.pth"
+  },
+  "optional_evaluation": {
+    "activation_sparsity": null,
+    "dense_macs_per_sample": null,
+    "theoretical_synops_per_sample": null
+  }
+}

@@ -8,6 +8,8 @@ from train_continuous_ttfs_cifar10_32x32_stem1 import (
     architecture_metadata,
     apply_pretrained_lineage,
     args_parser,
+    apply_warmup_learning_rates,
+    build_optimizer,
     convert_dense_checkpoint_to_ttfs,
     make_model,
     validate_pretrained_architecture,
@@ -50,6 +52,46 @@ def checkpoint_from_model(model, args, ema=None):
 
 
 class DenseToTTFSConversionTests(unittest.TestCase):
+    def test_differential_optimizer_isolates_new_convolution_delays(self):
+        args = model_args("ttfs", "ttfs")
+        args.lr = 2e-5
+        args.conv_delay_lr = 1e-4
+        args.weight_decay = 0.05
+        model = make_model(args)
+
+        optimizer = build_optimizer(model, args)
+
+        self.assertEqual(
+            [group["name"] for group in optimizer.param_groups],
+            ["transferred", "conv_delays"],
+        )
+        self.assertEqual(
+            [group["target_lr"] for group in optimizer.param_groups],
+            [2e-5, 1e-4],
+        )
+        delay_parameters = {
+            id(parameter)
+            for name, parameter in model.named_parameters()
+            if name.endswith("D_conv")
+        }
+        optimizer_delay_parameters = {
+            id(parameter) for parameter in optimizer.param_groups[1]["params"]
+        }
+        self.assertEqual(optimizer_delay_parameters, delay_parameters)
+        self.assertEqual(len(delay_parameters), 7)
+
+    def test_warmup_preserves_differential_learning_rate_ratio(self):
+        args = model_args("ttfs", "ttfs")
+        args.lr = 2e-5
+        args.conv_delay_lr = 1e-4
+        args.weight_decay = 0.05
+        optimizer = build_optimizer(make_model(args), args)
+
+        apply_warmup_learning_rates(optimizer, epoch=0, warmup_epochs=3)
+
+        self.assertAlmostEqual(optimizer.param_groups[0]["lr"], 2e-5 / 3)
+        self.assertAlmostEqual(optimizer.param_groups[1]["lr"], 1e-4 / 3)
+
     def test_resume_restores_pretrained_lineage(self):
         args = Namespace(pretrained_checkpoint="")
         initialization = {

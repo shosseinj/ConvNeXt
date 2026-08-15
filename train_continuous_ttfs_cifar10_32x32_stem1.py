@@ -199,6 +199,7 @@ def args_parser():
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--conv_delay_lr", type=float, default=None)
     parser.add_argument("--min_lr", type=float, default=1e-6)
     parser.add_argument("--warmup_epochs", type=int, default=10)
     parser.add_argument("--lr_scheduler_patience", type=int, default=6)
@@ -278,6 +279,10 @@ def args_parser():
         parser.error("--lr_scheduler_factor must be in (0,1)")
     if args.early_stopping_min_delta < 0.0:
         parser.error("--early_stopping_min_delta must be non-negative")
+    if args.lr <= 0.0:
+        parser.error("--lr must be positive")
+    if args.conv_delay_lr is not None and args.conv_delay_lr <= 0.0:
+        parser.error("--conv_delay_lr must be positive")
     if not 0.0 <= args.ema_decay < 1.0:
         parser.error("--ema_decay must be in [0,1)")
     return args
@@ -329,6 +334,57 @@ class ModelEMA:
     @torch.no_grad()
     def set(self, model):
         self.module.load_state_dict(model.state_dict(), strict=True)
+
+
+def build_optimizer(model, args):
+    convolution_delay_lr = getattr(args, "conv_delay_lr", None)
+    if convolution_delay_lr is None:
+        return torch.optim.AdamW(
+            [
+                {
+                    "params": list(model.parameters()),
+                    "name": "all",
+                    "lr": args.lr,
+                    "target_lr": args.lr,
+                }
+            ],
+            weight_decay=args.weight_decay,
+        )
+
+    transferred = []
+    convolution_delays = []
+    for name, parameter in model.named_parameters():
+        if name.endswith("D_conv"):
+            convolution_delays.append(parameter)
+        else:
+            transferred.append(parameter)
+    if not convolution_delays:
+        raise ValueError(
+            "--conv_delay_lr requires TTFS convolution D_conv parameters"
+        )
+    return torch.optim.AdamW(
+        [
+            {
+                "params": transferred,
+                "name": "transferred",
+                "lr": args.lr,
+                "target_lr": args.lr,
+            },
+            {
+                "params": convolution_delays,
+                "name": "conv_delays",
+                "lr": convolution_delay_lr,
+                "target_lr": convolution_delay_lr,
+            },
+        ],
+        weight_decay=args.weight_decay,
+    )
+
+
+def apply_warmup_learning_rates(optimizer, epoch, warmup_epochs):
+    scale = (epoch + 1) / max(1, warmup_epochs)
+    for group in optimizer.param_groups:
+        group["lr"] = group.get("target_lr", group["lr"]) * scale
 
 
 def build_loaders(args):
@@ -1027,6 +1083,7 @@ def create_experiment_report(
             "batch_size": args.batch_size,
             "optimizer": "AdamW",
             "learning_rate": args.lr,
+            "convolution_delay_learning_rate": args.conv_delay_lr,
             "lr_scheduler": "ReduceLROnPlateau(mode=max)",
             "lr_scheduler_patience": args.lr_scheduler_patience,
             "lr_scheduler_factor": args.lr_scheduler_factor,
@@ -1321,9 +1378,7 @@ def main():
     print("TTFS normalization smoke test:", smoke_test)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, weight_decay=args.weight_decay
-    )
+    optimizer = build_optimizer(model, args)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode="max",
@@ -1451,10 +1506,16 @@ def main():
     for epoch in range(start_epoch, args.epochs):
         print(f'\n\n\n\nEpoch == {epoch}')
         if epoch < args.warmup_epochs:
-            warmup_lr = args.lr * (epoch + 1) / max(1, args.warmup_epochs)
-            for group in optimizer.param_groups:
-                group["lr"] = warmup_lr
+            apply_warmup_learning_rates(
+                optimizer,
+                epoch,
+                args.warmup_epochs,
+            )
         learning_rate = optimizer.param_groups[0]["lr"]
+        learning_rates = {
+            group.get("name", f"group_{index}"): group["lr"]
+            for index, group in enumerate(optimizer.param_groups)
+        }
 
         train_metrics = run_epoch(
             model, train_loader, criterion, device, args, optimizer, scaler, ema
@@ -1485,11 +1546,17 @@ def main():
         if epoch >= args.warmup_epochs:
             scheduler.step(validation_metrics["accuracy"])
         next_learning_rate = optimizer.param_groups[0]["lr"]
+        next_learning_rates = {
+            group.get("name", f"group_{index}"): group["lr"]
+            for index, group in enumerate(optimizer.param_groups)
+        }
 
         log_row = {
             "epoch": epoch,
             "learning_rate": learning_rate,
             "next_learning_rate": next_learning_rate,
+            "learning_rates": learning_rates,
+            "next_learning_rates": next_learning_rates,
             **{f"train_{key}": value for key, value in train_metrics.items()},
             **{
                 f"val_{key}": value

@@ -1,0 +1,16 @@
+{
+  "best_epoch": 113,
+  "last_epoch": 143,
+  "best_validation_accuracy": 71.72,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.7395256744384766,
+    "accuracy": 72.46,
+    "samples": 10000,
+    "seconds": 12.367747068405151
+  },
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\fully_ttfs\\seed_6543\\best_checkpoint.pth",
+  "last_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\fully_ttfs\\seed_6543\\last_checkpoint.pth"
+}

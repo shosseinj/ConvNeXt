@@ -3,7 +3,6 @@ $ErrorActionPreference = "Stop"
 $python = Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"
 $trainer = Join-Path $PSScriptRoot "train_continuous_ttfs_cifar10_32x32_stem1.py"
 $evaluator = Join-Path $PSScriptRoot "Evaluation\evaluate_sparsity.py"
-$summarizer = Join-Path $PSScriptRoot "Evaluation\summarize_finetuned_ttfs.py"
 
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     throw "Python environment not found: $python"
@@ -11,27 +10,12 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 
 $campaigns = @(
     @{
-        Dataset = "cifar10"
-        Seeds = @(42, 6543, 7777)
-        SourceRoot = "results\cifar10\downsample_dense_dwconv_dense"
-        DataPath = "..\cifar_data"
-        BatchSize = 128
-        ValidationSize = 5000
-    },
-    @{
-        Dataset = "cifar100"
-        Seeds = @(42, 6543, 7777)
-        SourceRoot = "results\cifar100\downsample_dense_dwconv_dense"
-        DataPath = "..\cifar_data"
-        BatchSize = 128
-        ValidationSize = 5000
-    },
-    @{
         Dataset = "tinyimagenet"
         Seeds = @(42, 2344, 5435)
         SourceRoot = "results\tinyimagenet\test_downsample_ttfs_dwconv_dense"
         DataPath = "..\cifar_data\tiny-imagenet-200"
-        BatchSize = 32
+        BatchSize = 128
+        Workers = 8
         ValidationSize = 10000
     }
 )
@@ -43,7 +27,7 @@ foreach ($campaign in $campaigns) {
             "$($campaign.SourceRoot)\seed_$seed\best_checkpoint.pth"
         )
         $outputDirectory = Join-Path $PSScriptRoot (
-            "fine_tune_results\$dataset\fully_ttfs\seed_$seed"
+            "fine_tune_results_v3\$dataset\fully_ttfs\seed_$seed"
         )
         $lastCheckpoint = Join-Path $outputDirectory "last_checkpoint.pth"
         $bestCheckpoint = Join-Path $outputDirectory "best_checkpoint.pth"
@@ -60,7 +44,7 @@ foreach ($campaign in $campaigns) {
             "--output_dir", $outputDirectory,
             "--download", "false",
             "--experiment_name", "fully_ttfs",
-            "--experiment_notes", "Fine-tune fully TTFS ConvNeXt from the matched dense best checkpoint",
+            "--experiment_notes", "Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint",
             "--dims", "96,192,384,768",
             "--depths", "2,2,6,2",
             "--dw_kernel_size", "3",
@@ -72,9 +56,9 @@ foreach ($campaign in $campaigns) {
             "--residual_operator", "min",
             "--ttfs_norm_mode", "score_layernorm",
             "--final_score_norm", "true",
-            "--epochs", "150",
+            "--epochs", "250",
             "--batch_size", "$($campaign.BatchSize)",
-            "--num_workers", "4",
+            "--num_workers", "$($campaign.Workers)",
             "--val_size", "$($campaign.ValidationSize)",
             "--lr", "0.0001",
             "--min_lr", "1e-6",
@@ -94,7 +78,7 @@ foreach ($campaign in $campaigns) {
             "--drop_path", "0",
             "--t_min", "0",
             "--t_max", "1",
-            "--ema", "true",
+            "--ema", "false",
             "--ema_decay", "0.9998",
             "--early_stopping_patience", "30",
             "--early_stopping_min_delta", "0.02",
@@ -103,7 +87,16 @@ foreach ($campaign in $campaigns) {
             "--device", "cuda"
         )
 
+        $trainingComplete = $false
         if (Test-Path -LiteralPath $trainingSummary -PathType Leaf) {
+            $summary = Get-Content -LiteralPath $trainingSummary -Raw | ConvertFrom-Json
+            $trainingComplete = (
+                $summary.early_stopped -eq $true -or
+                [int]$summary.last_epoch -ge 249
+            )
+        }
+
+        if ($trainingComplete) {
             Write-Host "Training already complete: dataset=$dataset seed=$seed"
         }
         else {
@@ -131,7 +124,7 @@ foreach ($campaign in $campaigns) {
             --data_path $campaign.DataPath `
             --dw_kernel_size 3 `
             --batch_size $campaign.BatchSize `
-            --workers 4 `
+            --workers $campaign.Workers `
             --device cuda
         if ($LASTEXITCODE -ne 0) {
             throw "Sparsity evaluation failed: dataset=$dataset seed=$seed"
@@ -139,10 +132,4 @@ foreach ($campaign in $campaigns) {
     }
 }
 
-& $python $summarizer `
-    --root (Join-Path $PSScriptRoot "fine_tune_results") `
-    --output (Join-Path $PSScriptRoot "fine_tune_results\FULLY_TTFS_FINE_TUNING_SUMMARY.md")
-if ($LASTEXITCODE -ne 0) {
-    throw "Fine-tuning summary generation failed"
-}
-
+Write-Host "Tiny ImageNet batch-128 fine-tuning and sparsity evaluation complete."
