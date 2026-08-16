@@ -1,9 +1,9 @@
 {
   "data_path": "..\\cifar_data\\tiny-imagenet-200",
-  "output_dir": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_2344",
-  "resume": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_2344\\last_checkpoint.pth",
-  "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth",
-  "experiment_name": "tinyimagenet_fully_ttfs_seed2344",
+  "output_dir": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_5435",
+  "resume": "",
+  "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_5435\\best_checkpoint.pth",
+  "experiment_name": "tinyimagenet_fully_ttfs_seed5435",
   "experiment_notes": "Full-rate fine-tuning of fully TTFS ConvNeXt from the matched dense best checkpoint",
   "dataset": "tinyimagenet",
   "residual_operator": "min",
@@ -15,7 +15,7 @@
   "epochs": 250,
   "batch_size": 128,
   "num_workers": 8,
-  "seed": 2344,
+  "seed": 5435,
   "lr": 0.0001,
   "conv_delay_lr": null,
   "min_lr": 1e-06,
@@ -92,7 +92,7 @@
     ],
     "missing_keys": [],
     "unexpected_keys": [],
-    "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_2344\\best_checkpoint.pth"
+    "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\tinyimagenet\\test_downsample_ttfs_dwconv_dense\\seed_5435\\best_checkpoint.pth"
   },
   "dataset_configuration": {
     "name": "Tiny ImageNet",
@@ -128,46 +128,46 @@
   "actual_stage_delays": [
     {
       "stage": 0,
-      "mid": 0.05000000447034836,
-      "out": 0.05000000447034836
+      "mid": 0.3807602822780609,
+      "out": 0.3797209560871124
     },
     {
       "stage": 1,
-      "mid": 0.019999999552965164,
-      "out": 0.019999999552965164
+      "mid": 0.3669024407863617,
+      "out": 0.35597312450408936
     },
     {
       "stage": 2,
-      "mid": 0.009999999776482582,
-      "out": 0.009999999776482582
+      "mid": 0.3494500170151393,
+      "out": 0.3356331139802933
     },
     {
       "stage": 3,
-      "mid": 0.009999999776482582,
-      "out": 0.009999999776482582
+      "mid": 0.3336435854434967,
+      "out": 0.3352961540222168
     }
   ],
   "delay_parameterization": "max_delay * sigmoid(raw_delay)",
   "delay_gradient_norms_test_backward": [
     {
       "stage": 0,
-      "D_mid": 2.4097577040115193e-06,
-      "D_out": 9.4895081777477e-06
+      "D_mid": 0.012943362823956158,
+      "D_out": 0.03516191529615234
     },
     {
       "stage": 1,
-      "D_mid": 9.726399984553396e-05,
-      "D_out": 0.0002499473002806005
+      "D_mid": 0.028413927185760607,
+      "D_out": 0.03760229661098296
     },
     {
       "stage": 2,
-      "D_mid": 0.00025167553076686913,
-      "D_out": 0.0004650764387974132
+      "D_mid": 0.022104936582565255,
+      "D_out": 0.01397134917586462
     },
     {
       "stage": 3,
-      "D_mid": 0.0005168004699237491,
-      "D_out": 0.0007022778703986694
+      "D_mid": 0.011732272219914963,
+      "D_out": 0.005074002578935926
     }
   ],
   "ttfs_normalization_mode": "score_layernorm",
@@ -180,23 +180,23 @@
     "delay_gradient_norms": [
       {
         "stage": 0,
-        "D_mid": 2.4097577040115193e-06,
-        "D_out": 9.4895081777477e-06
+        "D_mid": 0.012943362823956158,
+        "D_out": 0.03516191529615234
       },
       {
         "stage": 1,
-        "D_mid": 9.726399984553396e-05,
-        "D_out": 0.0002499473002806005
+        "D_mid": 0.028413927185760607,
+        "D_out": 0.03760229661098296
       },
       {
         "stage": 2,
-        "D_mid": 0.00025167553076686913,
-        "D_out": 0.0004650764387974132
+        "D_mid": 0.022104936582565255,
+        "D_out": 0.01397134917586462
       },
       {
         "stage": 3,
-        "D_mid": 0.0005168004699237491,
-        "D_out": 0.0007022778703986694
+        "D_mid": 0.011732272219914963,
+        "D_out": 0.005074002578935926
       }
     ],
     "layernorm_gradient_norms": [
@@ -216,161 +216,161 @@
         "stage": 0,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 7.667339559702668e-06
+        "gradient_norm": 0.08501314371824265
       },
       {
         "stage": 0,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 9.581608537700959e-06
+        "gradient_norm": 0.093360535800457
       },
       {
         "stage": 1,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.0007467334507964551
+        "gradient_norm": 0.4276864230632782
       },
       {
         "stage": 1,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.0007478808402083814
+        "gradient_norm": 0.5512536764144897
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.0010931611759588122
+        "gradient_norm": 0.18248200416564941
       },
       {
         "stage": 1,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.0010936646722257137
+        "gradient_norm": 0.18588842451572418
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.004559701308608055
+        "gradient_norm": 0.14173616468906403
       },
       {
         "stage": 2,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.004555226769298315
+        "gradient_norm": 0.15856720507144928
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.003112992038950324
+        "gradient_norm": 0.08226581662893295
       },
       {
         "stage": 2,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.0034233860205858946
+        "gradient_norm": 0.11138194799423218
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "weight",
-        "gradient_norm": 0.004095009528100491
+        "gradient_norm": 0.43010860681533813
       },
       {
         "stage": 2,
         "block": 2,
         "parameter": "bias",
-        "gradient_norm": 0.004226024728268385
+        "gradient_norm": 0.30011123418807983
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "weight",
-        "gradient_norm": 0.003866796847432852
+        "gradient_norm": 0.3354806900024414
       },
       {
         "stage": 2,
         "block": 3,
         "parameter": "bias",
-        "gradient_norm": 0.0038340617902576923
+        "gradient_norm": 0.2933109700679779
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "weight",
-        "gradient_norm": 0.0036315685138106346
+        "gradient_norm": 0.47334280610084534
       },
       {
         "stage": 2,
         "block": 4,
         "parameter": "bias",
-        "gradient_norm": 0.003960120026022196
+        "gradient_norm": 0.4209873378276825
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "weight",
-        "gradient_norm": 0.003685604315251112
+        "gradient_norm": 0.12088052183389664
       },
       {
         "stage": 2,
         "block": 5,
         "parameter": "bias",
-        "gradient_norm": 0.004553099628537893
+        "gradient_norm": 0.10289354622364044
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "weight",
-        "gradient_norm": 0.021723192185163498
+        "gradient_norm": 0.1554325371980667
       },
       {
         "stage": 3,
         "block": 0,
         "parameter": "bias",
-        "gradient_norm": 0.022716958075761795
+        "gradient_norm": 0.07495111972093582
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "weight",
-        "gradient_norm": 0.018637998029589653
+        "gradient_norm": 0.5451431274414062
       },
       {
         "stage": 3,
         "block": 1,
         "parameter": "bias",
-        "gradient_norm": 0.018694398924708366
+        "gradient_norm": 0.2921113669872284
       }
     ],
     "final_layernorm_gradient_norms": [
       {
         "parameter": "weight",
-        "gradient_norm": 0.07671406865119934
+        "gradient_norm": 1.0830352306365967
       },
       {
         "parameter": "bias",
-        "gradient_norm": 0.05638640746474266
+        "gradient_norm": 0.3380751609802246
       }
     ],
     "convolution_delay_gradient_norms": [
       {
         "module": "downsample_layers.1.0",
-        "gradient_norm": 0.00010093154560308903,
+        "gradient_norm": 0.0038756912108510733,
         "effective_delay": 0.019999999552965164,
         "groups": 1
       },
       {
         "module": "downsample_layers.2.0",
-        "gradient_norm": 0.00018244657258037478,
+        "gradient_norm": 0.001103006536141038,
         "effective_delay": 0.009999999776482582,
         "groups": 1
       },
       {
         "module": "downsample_layers.3.0",
-        "gradient_norm": 0.00044635674566961825,
+        "gradient_norm": 0.00039782613748684525,
         "effective_delay": 0.009999999776482582,
         "groups": 1
       },
@@ -382,67 +382,67 @@
       },
       {
         "module": "stages.0.1.dwconv",
-        "gradient_norm": 0.00010494062735233456,
+        "gradient_norm": 0.059298668056726456,
         "effective_delay": 0.05000000447034836,
         "groups": 96
       },
       {
         "module": "stages.1.0.dwconv",
-        "gradient_norm": 0.0002612003299873322,
+        "gradient_norm": 0.031169500201940536,
         "effective_delay": 0.019999999552965164,
         "groups": 192
       },
       {
         "module": "stages.1.1.dwconv",
-        "gradient_norm": 0.0005359348724596202,
+        "gradient_norm": 0.007185503840446472,
         "effective_delay": 0.019999999552965164,
         "groups": 192
       },
       {
         "module": "stages.2.0.dwconv",
-        "gradient_norm": 0.0010978503851220012,
+        "gradient_norm": 0.008706058375537395,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.2.1.dwconv",
-        "gradient_norm": 0.0008907332667149603,
+        "gradient_norm": 0.0015793843194842339,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.2.2.dwconv",
-        "gradient_norm": 0.0012576136505231261,
+        "gradient_norm": 0.003417470958083868,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.2.3.dwconv",
-        "gradient_norm": 0.0014411213342100382,
+        "gradient_norm": 0.004437808878719807,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.2.4.dwconv",
-        "gradient_norm": 0.0014685222413390875,
+        "gradient_norm": 0.0033554641995579004,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.2.5.dwconv",
-        "gradient_norm": 0.0018590098479762673,
+        "gradient_norm": 0.0007501754444092512,
         "effective_delay": 0.009999999776482582,
         "groups": 384
       },
       {
         "module": "stages.3.0.dwconv",
-        "gradient_norm": 0.005224449560046196,
+        "gradient_norm": 0.0025098768528550863,
         "effective_delay": 0.009999999776482582,
         "groups": 768
       },
       {
         "module": "stages.3.1.dwconv",
-        "gradient_norm": 0.004509883467108011,
+        "gradient_norm": 0.004022006876766682,
         "effective_delay": 0.009999999776482582,
         "groups": 768
       }

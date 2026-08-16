@@ -1,0 +1,16 @@
+{
+  "best_epoch": 178,
+  "last_epoch": 208,
+  "best_validation_accuracy": 61.04,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 2.3194106662750245,
+    "accuracy": 62.31,
+    "samples": 10000,
+    "seconds": 33.58498549461365
+  },
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_5435\\best_checkpoint.pth",
+  "last_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\tinyimagenet\\fully_ttfs\\seed_5435\\last_checkpoint.pth"
+}
