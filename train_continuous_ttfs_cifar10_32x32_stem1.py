@@ -177,6 +177,7 @@ def args_parser():
     checkpoint_group = parser.add_mutually_exclusive_group()
     checkpoint_group.add_argument("--resume", default="")
     checkpoint_group.add_argument("--pretrained_checkpoint", default="")
+    checkpoint_group.add_argument("--constrained_finetune_checkpoint", default="")
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
     parser.add_argument("--dataset", type=dataset_name, default="cifar10")
@@ -232,6 +233,11 @@ def args_parser():
     parser.add_argument("--t_min", type=float, default=0.0)
     parser.add_argument("--t_max", type=float, default=1.0)
     parser.add_argument("--force_positive_weights", type=str2bool, default=False)
+    parser.add_argument(
+        "--force_positive_pointwise_weights",
+        type=str2bool,
+        default=False,
+    )
     parser.add_argument("--init_delay", type=float, default=0.0)
     parser.add_argument("--stage_delays", default="0.4,0.0,0.0,0.0")
     parser.add_argument("--amp", type=str2bool, default=True)
@@ -502,6 +508,9 @@ def make_model(args):
         downsample_mode=args.downsample_mode,
         residual_operator=getattr(args, "residual_operator", "min"),
         force_positive_weights=args.force_positive_weights,
+        force_positive_pointwise_weights=(
+            getattr(args, "force_positive_pointwise_weights", False)
+        ),
         init_delay=args.init_delay,
         stage_delays=delays,
     )
@@ -583,6 +592,10 @@ def architecture_metadata(args):
         "dwconv_mode": args.dwconv_mode,
         "downsample_mode": args.downsample_mode,
         "residual_operator": getattr(args, "residual_operator", "min"),
+        "force_positive_weights": args.force_positive_weights,
+        "force_positive_pointwise_weights": (
+            getattr(args, "force_positive_pointwise_weights", False)
+        ),
         "pw2_mode": args.pw2_mode,
         "ttfs_norm_mode": args.ttfs_norm_mode,
         "final_score_norm": args.final_score_norm,
@@ -611,6 +624,10 @@ def validate_resume_architecture(checkpoint, args):
         checkpoint_architecture.setdefault("dwconv_mode", "dense")
         checkpoint_architecture.setdefault("downsample_mode", "dense")
         checkpoint_architecture.setdefault("residual_operator", "min")
+        checkpoint_architecture.setdefault("force_positive_weights", False)
+        checkpoint_architecture.setdefault(
+            "force_positive_pointwise_weights", False
+        )
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
             "Resume checkpoint architecture does not match this run. "
@@ -859,6 +876,131 @@ def convert_dense_checkpoint_to_ttfs(model, checkpoint, args):
     }
 
 
+def validate_constrained_finetune_architecture(checkpoint, args):
+    _, state = _checkpoint_state(checkpoint)
+    architecture = checkpoint.get("architecture") or {}
+    source_args = checkpoint.get("args") or {}
+    if not isinstance(architecture, dict) or not isinstance(source_args, dict):
+        raise ValueError("Constrained fine-tune checkpoint metadata is invalid")
+
+    source_dwconv = str(
+        architecture.get(
+            "dwconv_mode",
+            source_args.get("dwconv_mode")
+            or _legacy_convolution_mode(state, "dwconv_mode"),
+        )
+    ).lower()
+    source_downsample = str(
+        architecture.get(
+            "downsample_mode",
+            source_args.get("downsample_mode")
+            or _legacy_convolution_mode(state, "downsample_mode"),
+        )
+    ).lower()
+    source_pw1 = _canonical_pw1_mode(source_args.get("pw1_mode", "ttfs"))
+    source_pw2 = str(
+        architecture.get("pw2_mode", source_args.get("pw2_mode", "ttfs"))
+    ).lower()
+    if (source_dwconv, source_downsample, source_pw1, source_pw2) != (
+        "ttfs", "ttfs", "ttfs", "ttfs"
+    ):
+        raise ValueError(
+            "Constrained fine-tune source must be fully TTFS for "
+            "PW1, PW2, depthwise convolution, and downsampling"
+        )
+    if (args.dwconv_mode, args.downsample_mode, _canonical_pw1_mode(args.pw1_mode), args.pw2_mode) != (
+        "ttfs", "ttfs", "ttfs", "ttfs"
+    ):
+        raise ValueError("Constrained fine-tune target must be fully TTFS")
+
+    source_all_positive = bool(
+        architecture.get(
+            "force_positive_weights",
+            source_args.get("force_positive_weights", False),
+        )
+    )
+    source_pointwise_positive = bool(
+        architecture.get(
+            "force_positive_pointwise_weights",
+            source_args.get("force_positive_pointwise_weights", False),
+        )
+    )
+    if source_all_positive or source_pointwise_positive:
+        raise ValueError(
+            "Constrained fine-tune source must be unconstrained"
+        )
+    if args.force_positive_weights or not getattr(
+        args, "force_positive_pointwise_weights", False
+    ):
+        raise ValueError(
+            "Target must enable pointwise-only non-negative weights"
+        )
+
+    source_dataset = source_args.get("dataset")
+    if source_dataset is not None:
+        source_dataset = dataset_name(source_dataset)
+    if source_dataset != args.dataset:
+        raise ValueError(
+            f"Constrained fine-tune dataset mismatch: "
+            f"source={source_dataset!r}, target={args.dataset!r}"
+        )
+
+    requested = architecture_metadata(args)
+    comparisons = {
+        "num_classes": architecture.get(
+            "num_classes", source_args.get("num_classes")
+        ),
+        "dims": architecture.get("dims", source_args.get("dims")),
+        "depths": architecture.get("depths", source_args.get("depths")),
+        "depthwise_kernel_size": architecture.get(
+            "depthwise_kernel_size", source_args.get("dw_kernel_size")
+        ),
+        "residual_operator": architecture.get(
+            "residual_operator", source_args.get("residual_operator", "min")
+        ),
+        "ttfs_norm_mode": architecture.get(
+            "ttfs_norm_mode", source_args.get("ttfs_norm_mode")
+        ),
+        "final_score_norm": architecture.get(
+            "final_score_norm", source_args.get("final_score_norm", False)
+        ),
+        "input_resolution": architecture.get(
+            "input_resolution",
+            [args.input_resolution, args.input_resolution],
+        ),
+        "stage_delays": architecture.get(
+            "stage_delays", source_args.get("stage_delays")
+        ),
+    }
+    mismatches = []
+    for field, source in comparisons.items():
+        target = requested[field]
+        if field in {"dims", "depths", "input_resolution"} and source is not None:
+            source = list(source)
+        if field == "stage_delays" and isinstance(source, str):
+            source = [float(value) for value in source.split(",")]
+        if source != target:
+            mismatches.append(f"{field}: source={source!r}, target={target!r}")
+    if mismatches:
+        raise ValueError(
+            "Constrained fine-tune checkpoint architecture mismatch: "
+            + "; ".join(mismatches)
+        )
+
+
+def initialize_constrained_finetune(model, checkpoint, args):
+    validate_constrained_finetune_architecture(checkpoint, args)
+    source_name, source_state = _checkpoint_state(checkpoint)
+    incompatible = model.load_state_dict(source_state, strict=True)
+    return {
+        "kind": "fully_ttfs_to_nonnegative_pointwise",
+        "source_state": source_name,
+        "transferred_parameter_keys": len(source_state),
+        "missing_keys": list(incompatible.missing_keys),
+        "unexpected_keys": list(incompatible.unexpected_keys),
+    }
+
+
 def apply_pretrained_lineage(args, checkpoint):
     initialization = checkpoint.get("pretrained_initialization")
     if not isinstance(initialization, dict):
@@ -868,6 +1010,18 @@ def apply_pretrained_lineage(args, checkpoint):
     source_checkpoint = initialization.get("source_checkpoint")
     if source_checkpoint:
         args.pretrained_checkpoint = str(source_checkpoint)
+    return initialization
+
+
+def apply_constrained_finetune_lineage(args, checkpoint):
+    initialization = checkpoint.get("constrained_finetune_initialization")
+    if not isinstance(initialization, dict):
+        return None
+    initialization = copy.deepcopy(initialization)
+    args.constrained_finetune_initialization = initialization
+    source_checkpoint = initialization.get("source_checkpoint")
+    if source_checkpoint:
+        args.constrained_finetune_checkpoint = str(source_checkpoint)
     return initialization
 
 
@@ -1104,6 +1258,9 @@ def create_experiment_report(
             "pretrained_initialization": getattr(
                 args, "pretrained_initialization", None
             ),
+            "constrained_finetune_initialization": getattr(
+                args, "constrained_finetune_initialization", None
+            ),
         },
         "results": {
             "best_epoch": previous_results.get("best_epoch"),
@@ -1243,6 +1400,9 @@ def save_checkpoint(
             "pretrained_initialization": getattr(
                 args, "pretrained_initialization", None
             ),
+            "constrained_finetune_initialization": getattr(
+                args, "constrained_finetune_initialization", None
+            ),
         },
         temporary_path,
     )
@@ -1263,6 +1423,7 @@ def main():
     train_loader, validation_loader, test_loader = build_loaders(args)
     model = make_model(args).to(device)
     pretrained_initialization = None
+    constrained_finetune_initialization = None
     if args.pretrained_checkpoint:
         pretrained_path = Path(args.pretrained_checkpoint)
         if not pretrained_path.is_file():
@@ -1292,6 +1453,33 @@ def main():
             f"{pretrained_initialization['transferred_parameter_keys']}; "
             "initialized convolution delay tensors: "
             f"{len(pretrained_initialization['initialized_delay_keys'])}"
+        )
+    if args.constrained_finetune_checkpoint:
+        constrained_path = Path(args.constrained_finetune_checkpoint)
+        if not constrained_path.is_file():
+            raise FileNotFoundError(
+                "Constrained fine-tune checkpoint does not exist: "
+                f"{constrained_path}"
+            )
+        constrained_checkpoint = torch.load(
+            constrained_path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        constrained_finetune_initialization = initialize_constrained_finetune(
+            model,
+            constrained_checkpoint,
+            args,
+        )
+        constrained_finetune_initialization["source_checkpoint"] = str(
+            constrained_path.resolve()
+        )
+        args.constrained_finetune_initialization = (
+            constrained_finetune_initialization
+        )
+        print(
+            "Initialized pointwise-constrained fully TTFS model from: "
+            f"{constrained_finetune_initialization['source_checkpoint']}"
         )
 
     # Verify native input resolution, unchanged stride-1 stem, and stage schedule.
@@ -1358,6 +1546,10 @@ def main():
     print(f"TTFS normalization mode: {args.ttfs_norm_mode}")
     print(f"Depthwise convolution mode: {args.dwconv_mode}")
     print(f"Downsampling convolution mode: {args.downsample_mode}")
+    print(
+        "Non-negative effective pointwise weights: "
+        f"{args.force_positive_pointwise_weights}"
+    )
     print(f"Final score normalization enabled: {args.final_score_norm}")
     print(
         "Augmentation settings:",
@@ -1397,11 +1589,31 @@ def main():
     best_epoch = -1
     epochs_without_improvement = 0
 
+    if args.constrained_finetune_checkpoint:
+        initial_directory = output_dir / "initial_constraint"
+        initial_directory.mkdir(parents=True, exist_ok=True)
+        save_checkpoint(
+            initial_directory / "initial_constrained_checkpoint.pth",
+            model,
+            optimizer,
+            scheduler,
+            scaler,
+            ema,
+            -1,
+            -1.0,
+            -1,
+            0,
+            args,
+        )
+
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
         restored_initialization = apply_pretrained_lineage(args, checkpoint)
         if restored_initialization is not None:
             pretrained_initialization = restored_initialization
+        restored_constraint = apply_constrained_finetune_lineage(args, checkpoint)
+        if restored_constraint is not None:
+            constrained_finetune_initialization = restored_constraint
         validate_resume_architecture(checkpoint, args)
         model.load_state_dict(checkpoint["model"], strict=True)
         optimizer.load_state_dict(checkpoint["optimizer"])
@@ -1475,6 +1687,9 @@ def main():
         "simulation_steps": None,
         "mixup_order": "raw images in [0,1], then TTFS encode",
         "pretrained_initialization": pretrained_initialization,
+        "constrained_finetune_initialization": (
+            constrained_finetune_initialization
+        ),
     }
     (output_dir / "config.json").write_text(
         json.dumps(config, indent=2), encoding="utf-8"

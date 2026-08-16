@@ -1196,6 +1196,7 @@ class SpikingBlock(nn.Module):
     """
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
+                 force_positive_pointwise_weights: bool = False,
                  spike_dropout: float = 0.0, pw2_mode: str = "ttfs",
                  ttfs_norm_mode: str = "none", dwconv_mode: str = "dense",
                  residual_operator: str = "min"):
@@ -1227,7 +1228,10 @@ class SpikingBlock(nn.Module):
             )
         else:
             self.register_parameter("raw_residual_gate", None)
-        self.force_positive_weights = force_positive_weights
+        self.force_positive_weights = bool(force_positive_weights)
+        self.force_positive_pointwise_weights = bool(
+            force_positive_weights or force_positive_pointwise_weights
+        )
         self.gamma = getattr(orig_block, 'gamma', None)
         self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
         self.t_min = float(t_min)
@@ -1286,6 +1290,11 @@ class SpikingBlock(nn.Module):
                 ).mean().item())
         return {"mid": mid, "out": out}
 
+    def effective_pointwise_weight(self, weight):
+        if self.force_positive_pointwise_weights:
+            return torch.relu(weight)
+        return weight
+
 
     def _apply_spike_dropout(self, t_out):
         """Drop TTFS events by replacing their times with the no-spike time."""
@@ -1330,10 +1339,7 @@ class SpikingBlock(nn.Module):
         # pw1
         # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
         # optionally enforce non-negative pointwise weights (encourages sparsity / pruning)
-        W1 = (
-            torch.relu(self.pw1.weight)
-            if self.force_positive_weights else self.pw1.weight
-        )
+        W1 = self.effective_pointwise_weight(self.pw1.weight)
         device = x_flat.device
         dtype = x_flat.dtype
         # Smooth bounded delay: max_delay * sigmoid(raw_delay).
@@ -1347,10 +1353,7 @@ class SpikingBlock(nn.Module):
         # Dense mode matches ConvNeXt's linear second pointwise projection: it
         # introduces no second TTFS threshold and includes the learned bias.
         if self.pw2_mode == "ttfs":
-            W2 = (
-                torch.relu(self.pw2.weight)
-                if self.force_positive_weights else self.pw2.weight
-            )
+            W2 = self.effective_pointwise_weight(self.pw2.weight)
             D_out = self._bounded_delay(
                 self.D_out, device=device, dtype=dtype
             )
@@ -1359,7 +1362,7 @@ class SpikingBlock(nn.Module):
             )
         else:
             scores_mid = -t_mid
-            if self.force_positive_weights:
+            if self.force_positive_pointwise_weights:
                 scores_out = F.linear(
                     scores_mid, torch.relu(self.pw2.weight), self.pw2.bias
                 )
@@ -1390,9 +1393,15 @@ class ConvNeXtSpiking(ConvNeXt):
                  spike_dropout=0.0, pw2_mode="ttfs", init_delay=0.0,
                  stage_delays=None, ttfs_norm_mode="none",
                  final_score_norm=False, downsample_mode="dense",
-                 dwconv_mode="dense", residual_operator="min", **kwargs):
+                 dwconv_mode="dense", residual_operator="min",
+                 force_positive_pointwise_weights=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.force_positive_weights = kwargs.get('force_positive_weights', False)
+        self.force_positive_weights = bool(
+            kwargs.get('force_positive_weights', False)
+        )
+        self.force_positive_pointwise_weights = bool(
+            self.force_positive_weights or force_positive_pointwise_weights
+        )
         self.init_delay = float(init_delay)
         if stage_delays is None:
             stage_delays = (self.init_delay,) * 4
@@ -1434,6 +1443,9 @@ class ConvNeXtSpiking(ConvNeXt):
                 spb = SpikingBlock(
                     b, t_min=t_min, t_max=t_max,
                     force_positive_weights=self.force_positive_weights,
+                    force_positive_pointwise_weights=(
+                        self.force_positive_pointwise_weights
+                    ),
                     init_delay=self.stage_delays[si],
                     spike_dropout=spike_dropout,
                     pw2_mode=pw2_mode,

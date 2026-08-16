@@ -300,6 +300,27 @@ def get_checkpoint_residual_operator(checkpoint):
     return value
 
 
+def get_checkpoint_pointwise_constraint(checkpoint):
+    architecture = checkpoint.get("architecture") or {}
+    saved_args = checkpoint.get("args") or {}
+    if not isinstance(architecture, dict) or not isinstance(saved_args, dict):
+        raise ValueError("Checkpoint constraint metadata must be a dictionary")
+    value = architecture.get(
+        "force_positive_pointwise_weights",
+        saved_args.get("force_positive_pointwise_weights", False),
+    )
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "0", "no", "n", ""}:
+        return False
+    raise ValueError(
+        "Checkpoint force_positive_pointwise_weights must be boolean"
+    )
+
+
 # ============================================================
 # Dataset
 # ============================================================
@@ -402,7 +423,12 @@ def image_to_spike_time(
 # Model construction
 # ============================================================
 
-def build_model(args, convolution_modes, residual_operator="min"):
+def build_model(
+    args,
+    convolution_modes,
+    residual_operator="min",
+    force_positive_pointwise_weights=False,
+):
     info = get_dataset_info(args.dataset)
 
     model = ConvNeXtSpiking(
@@ -422,6 +448,9 @@ def build_model(args, convolution_modes, residual_operator="min"):
         dwconv_mode=convolution_modes["dwconv_mode"],
         downsample_mode=convolution_modes["downsample_mode"],
         residual_operator=residual_operator,
+        force_positive_pointwise_weights=(
+            force_positive_pointwise_weights
+        ),
         pw2_mode="ttfs",
 
         stage_delays=(
@@ -1192,6 +1221,7 @@ def run_evaluation(args, checkpoint_path):
         state_dict,
     )
     residual_operator = get_checkpoint_residual_operator(checkpoint)
+    pointwise_constraint = get_checkpoint_pointwise_constraint(checkpoint)
     architecture = checkpoint.get("architecture") or {}
     mode_sources = {
         field: (
@@ -1222,11 +1252,21 @@ def run_evaluation(args, checkpoint_path):
         "Detected residual operator: "
         f"{residual_operator} ({residual_source})"
     )
+    pointwise_source = (
+        "metadata"
+        if "force_positive_pointwise_weights" in architecture
+        else "legacy default"
+    )
+    print(
+        "Detected non-negative effective pointwise weights: "
+        f"{pointwise_constraint} ({pointwise_source})"
+    )
 
     model = build_model(
         args,
         convolution_modes,
         residual_operator,
+        pointwise_constraint,
     )
 
     incompatible_keys = model.load_state_dict(

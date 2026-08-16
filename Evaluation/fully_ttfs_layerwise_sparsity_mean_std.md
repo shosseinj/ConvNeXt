@@ -53,6 +53,6 @@ Values are reported as **mean ± sample standard deviation** across three seeds.
 
 | Dataset       | Global sparsity mean ± std |
 | ------------- | -------------------------: |
-| CIFAR-10      |          **33.00 ± 3.02%** |
-| CIFAR-100     |          **32.38 ± 3.70%** |
+| CIFAR-10      |          **33.55 ± 3.02%** |
+| CIFAR-100     |          **32.93 ± 3.70%** |
 | Tiny ImageNet |          **21.70 ± 1.29%** |
