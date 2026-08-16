@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -482,12 +483,14 @@ def build_model(
 class SparsityCounter:
     def __init__(self):
         self.data = {}
+        self.sample_count = 0
 
     def add(
         self,
         name,
         tensor,
         t_max,
+        synops=0,
     ):
         if tensor is None:
             return
@@ -504,10 +507,12 @@ class SparsityCounter:
             self.data[name] = {
                 "silent": 0,
                 "total": 0,
+                "synops": 0,
             }
 
         self.data[name]["silent"] += silent
         self.data[name]["total"] += total
+        self.data[name]["synops"] += int(synops)
 
     def sparsity(self, name):
         d = self.data[name]
@@ -540,6 +545,45 @@ class SparsityCounter:
             * total_silent
             / total_elements
         )
+
+    def global_synops(self):
+        return sum(d["synops"] for d in self.data.values())
+
+
+def linear_synops(input_times, weight, t_max):
+    active_by_input = (
+        input_times.detach() < (t_max - 1e-6)
+    ).reshape(-1, input_times.shape[-1]).sum(dim=0)
+    nonzero_outgoing = (weight.detach() != 0).sum(dim=0)
+    return int((active_by_input * nonzero_outgoing).sum().item())
+
+
+def convolution_synops(
+    input_times,
+    weight,
+    t_max,
+    stride,
+    padding,
+    dilation,
+    groups,
+):
+    active = (input_times.detach() < (t_max - 1e-6)).to(
+        dtype=torch.float32
+    )
+    connectivity = (weight.detach() != 0).to(
+        device=active.device,
+        dtype=active.dtype,
+    )
+    operations = F.conv2d(
+        active,
+        connectivity,
+        bias=None,
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+    )
+    return int(operations.sum().item())
 
 
 # ============================================================
@@ -647,10 +691,26 @@ def evaluate_sparsity(
 
         def hook(module, inputs, output):
 
+            weight = (
+                torch.relu(module.conv.weight)
+                if module.force_positive_weights
+                else module.conv.weight
+            )
+            synops = convolution_synops(
+                inputs[0],
+                weight,
+                t_max=t_max,
+                stride=module.conv.stride,
+                padding=module.conv.padding,
+                dilation=module.conv.dilation,
+                groups=module.conv.groups,
+            )
+
             counter.add(
                 layer_name,
                 output,
                 t_max,
+                synops=synops,
             )
 
         return hook
@@ -730,6 +790,11 @@ def evaluate_sparsity(
                     f"{block_name}.pw1_ttfs",
                     t_mid,
                     t_max,
+                    synops=linear_synops(
+                        block.t_pw1_input_spike,
+                        block.effective_pointwise_weight(block.pw1.weight),
+                        t_max,
+                    ),
                 )
 
             if t_out is not None:
@@ -738,6 +803,11 @@ def evaluate_sparsity(
                     f"{block_name}.pw2_ttfs",
                     t_out,
                     t_max,
+                    synops=linear_synops(
+                        block.t_pw2_input_spike,
+                        block.effective_pointwise_weight(block.pw2.weight),
+                        t_max,
+                    ),
                 )
 
         # -----------------------------------------------
@@ -782,6 +852,7 @@ def evaluate_sparsity(
         * correct
         / total_samples
     )
+    counter.sample_count = total_samples
 
     return counter, accuracy, expected_total
 
@@ -895,6 +966,7 @@ def print_report(
         f"{'Silent':>14s}"
         f"{'Total':>14s}"
         f"{'Sparsity':>10s}"
+        f"{'SynOps/sample':>18s}"
     )
 
     print("-" * 115)
@@ -917,11 +989,13 @@ def print_report(
             f"{d['silent']:14,d}"
             f"{d['total']:14,d}"
             f"{sparsity:9.2f}%"
+            f"{d['synops'] / max(counter.sample_count, 1):18,.0f}"
         )
 
     print("-" * 115)
 
     overall = counter.global_sparsity()
+    synops_per_sample = counter.global_synops() / max(counter.sample_count, 1)
 
     print(
         f"{'GLOBAL WEIGHTED SPARSITY':77s}"
@@ -947,6 +1021,8 @@ def print_report(
         f"Expected TTFS points:     "
         f"{expected_points}"
     )
+    print(f"Theoretical SynOps/sample: {synops_per_sample:,.0f}")
+    print(f"Layerwise SynOps total:    {counter.global_synops():,}")
 
     if len(counter.data) != expected_points:
 
@@ -1062,6 +1138,11 @@ def print_report(
     print(
         f"Activation sparsity:  "
         f"{overall:.2f}%"
+    )
+
+    print(
+        f"Theoretical SynOps:   "
+        f"{synops_per_sample:,.0f} per sample"
     )
 
     print(

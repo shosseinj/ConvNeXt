@@ -35,6 +35,7 @@ def model_args(dwconv_mode="dense", downsample_mode="dense"):
         dwconv_mode=dwconv_mode,
         downsample_mode=downsample_mode,
         residual_operator="min",
+        allow_pretrained_residual_operator_change=False,
         force_positive_weights=False,
         init_delay=0.0,
         stage_delays="0.05,0.02,0.01,0.01",
@@ -52,6 +53,69 @@ def checkpoint_from_model(model, args, ema=None):
 
 
 class DenseToTTFSConversionTests(unittest.TestCase):
+    def test_residual_ablation_can_change_min_source_to_mean(self):
+        dense_args = model_args()
+        target_args = model_args("ttfs", "ttfs")
+        target_args.residual_operator = "mean"
+        target_args.allow_pretrained_residual_operator_change = True
+
+        diagnostics = convert_dense_checkpoint_to_ttfs(
+            make_model(target_args),
+            checkpoint_from_model(make_model(dense_args), dense_args),
+            target_args,
+        )
+
+        self.assertEqual(diagnostics["initialized_gate_keys"], [])
+
+    def test_residual_ablation_initializes_one_zero_gate_per_block(self):
+        dense_args = model_args()
+        target_args = model_args("ttfs", "ttfs")
+        target_args.residual_operator = "learnable_gate"
+        target_args.allow_pretrained_residual_operator_change = True
+        target = make_model(target_args)
+
+        diagnostics = convert_dense_checkpoint_to_ttfs(
+            target,
+            checkpoint_from_model(make_model(dense_args), dense_args),
+            target_args,
+        )
+
+        self.assertEqual(
+            len(diagnostics["initialized_gate_keys"]),
+            sum(target_args.depths),
+        )
+        for key in diagnostics["initialized_gate_keys"]:
+            torch.testing.assert_close(
+                target.state_dict()[key],
+                torch.zeros_like(target.state_dict()[key]),
+            )
+        self.assertEqual(diagnostics["missing_keys"], [])
+        self.assertEqual(diagnostics["unexpected_keys"], [])
+
+    def test_residual_change_remains_rejected_without_ablation_flag(self):
+        dense_args = model_args()
+        target_args = model_args("ttfs", "ttfs")
+        target_args.residual_operator = "mean"
+
+        with self.assertRaisesRegex(ValueError, "residual_operator"):
+            validate_pretrained_architecture(
+                checkpoint_from_model(make_model(dense_args), dense_args),
+                target_args,
+            )
+
+    def test_residual_ablation_rejects_non_min_source(self):
+        dense_args = model_args()
+        dense_args.residual_operator = "mean"
+        target_args = model_args("ttfs", "ttfs")
+        target_args.residual_operator = "learnable_gate"
+        target_args.allow_pretrained_residual_operator_change = True
+
+        with self.assertRaisesRegex(ValueError, "min source"):
+            validate_pretrained_architecture(
+                checkpoint_from_model(make_model(dense_args), dense_args),
+                target_args,
+            )
+
     def test_differential_optimizer_isolates_new_convolution_delays(self):
         args = model_args("ttfs", "ttfs")
         args.lr = 2e-5

@@ -1335,6 +1335,7 @@ class SpikingBlock(nn.Module):
             scores = self.norm(scores)
             x = -scores
         x_flat = x.reshape(-1, C)  # (N*H*W, C_in)
+        self.t_pw1_input_spike = None if self.training else x_flat.detach()
 
         # pw1
         # W1 = torch.relu(self.pw1.weight).t().contiguous()  # (C_in, C_mid)
@@ -1348,6 +1349,7 @@ class SpikingBlock(nn.Module):
             x_flat, W1, D_mid, self.t_min, self.t_max
         )
         self.t_mid_spike = None if self.training else t_mid.detach()
+        self.t_pw2_input_spike = None if self.training else t_mid.detach()
 
         # pw2 is either the legacy TTFS transform or a dense score projection.
         # Dense mode matches ConvNeXt's linear second pointwise projection: it

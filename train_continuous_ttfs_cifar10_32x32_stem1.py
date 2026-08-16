@@ -186,6 +186,17 @@ def args_parser():
         choices=("min", "mean", "learnable_gate"),
         default="min",
     )
+    parser.add_argument(
+        "--allow_pretrained_residual_operator_change",
+        type=str2bool,
+        default=False,
+        help=(
+            "Allow the residual-fusion ablation to initialize a mean or "
+            "learnable-gate Fully-TTFS target from a matched dense checkpoint "
+            "whose residual operator is min. All other architecture fields "
+            "remain strict."
+        ),
+    )
     parser.add_argument("--pw1_mode", default="continuous TTFS")
     parser.add_argument("--pw2_mode", choices=("dense", "ttfs"), default="ttfs")
     parser.add_argument(
@@ -732,6 +743,30 @@ def validate_pretrained_architecture(checkpoint, args):
     if source_num_classes is None and "head.weight" in state:
         source_num_classes = state["head.weight"].shape[0]
 
+    source_residual = str(
+        architecture.get(
+            "residual_operator",
+            source_args.get("residual_operator", "min"),
+        )
+    ).strip().lower()
+    target_residual = str(
+        getattr(args, "residual_operator", "min")
+    ).strip().lower()
+    allow_residual_change = bool(
+        getattr(args, "allow_pretrained_residual_operator_change", False)
+    )
+    if allow_residual_change:
+        if source_residual != "min":
+            raise ValueError(
+                "Residual ablation initialization requires a min source "
+                f"checkpoint, got {source_residual!r}"
+            )
+        if target_residual not in {"mean", "learnable_gate"}:
+            raise ValueError(
+                "Residual ablation target must be 'mean' or "
+                "'learnable_gate'"
+            )
+
     comparisons = {
         "num_classes": (source_num_classes, args.num_classes),
         "dims": (architecture.get("dims", source_args.get("dims")), list(args.dims)),
@@ -752,10 +787,6 @@ def validate_pretrained_architecture(checkpoint, args):
             architecture.get("final_score_norm", source_args.get("final_score_norm", False)),
             args.final_score_norm,
         ),
-        "residual_operator": (
-            architecture.get("residual_operator", source_args.get("residual_operator", "min")),
-            getattr(args, "residual_operator", "min"),
-        ),
         "input_resolution": (
             architecture.get(
                 "input_resolution",
@@ -768,6 +799,11 @@ def validate_pretrained_architecture(checkpoint, args):
             [float(value) for value in args.stage_delays.split(",")],
         ),
     }
+    if not allow_residual_change:
+        comparisons["residual_operator"] = (
+            source_residual,
+            target_residual,
+        )
     mismatches = []
     for field, (source, target) in comparisons.items():
         if field in {"dims", "depths", "input_resolution"} and source is not None:
@@ -832,10 +868,13 @@ def convert_dense_checkpoint_to_ttfs(model, checkpoint, args):
     source_name, source_state = _checkpoint_state(checkpoint)
     target_state = model.state_dict()
     delay_keys = sorted(key for key in target_state if key.endswith(".D_conv"))
+    gate_keys = sorted(
+        key for key in target_state if key.endswith(".raw_residual_gate")
+    )
     converted = {
         key: tensor.clone()
         for key, tensor in target_state.items()
-        if key in delay_keys
+        if key in delay_keys or key in gate_keys
     }
     unused = []
     for source_key, source_tensor in source_state.items():
@@ -871,6 +910,16 @@ def convert_dense_checkpoint_to_ttfs(model, checkpoint, args):
         "source_parameter_keys": len(source_state),
         "transferred_parameter_keys": len(source_state),
         "initialized_delay_keys": delay_keys,
+        "initialized_gate_keys": gate_keys,
+        "source_residual_operator": str(
+            (checkpoint.get("architecture") or {}).get(
+                "residual_operator",
+                (checkpoint.get("args") or {}).get("residual_operator", "min"),
+            )
+        ).strip().lower(),
+        "target_residual_operator": str(
+            getattr(args, "residual_operator", "min")
+        ).strip().lower(),
         "missing_keys": list(incompatible.missing_keys),
         "unexpected_keys": list(incompatible.unexpected_keys),
     }
