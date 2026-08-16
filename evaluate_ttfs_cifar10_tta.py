@@ -87,8 +87,20 @@ def architecture_from_checkpoint(checkpoint):
     if not isinstance(architecture, dict):
         raise RuntimeError("Checkpoint is missing architecture metadata")
     normalized = dict(architecture)
+    residual_operator = normalized.get("residual_operator")
+    if residual_operator not in {"min", "mean", "learnable_gate"}:
+        raise RuntimeError(
+            "Checkpoint architecture residual_operator must be one of "
+            "'min', 'mean', or 'learnable_gate'"
+        )
     normalized.setdefault("final_score_norm", False)
     normalized.setdefault("ttfs_grn", False)
+    normalized.setdefault(
+        "force_positive_pointwise_weights",
+        bool((checkpoint.get("args") or {}).get(
+            "force_positive_pointwise_weights", False
+        )),
+    )
     return normalized
 
 
@@ -120,8 +132,12 @@ def build_model(checkpoint):
         final_score_norm=bool(architecture.get("final_score_norm", False)),
         dwconv_mode=architecture.get("dwconv_mode", "dense"),
         downsample_mode=architecture.get("downsample_mode", "dense"),
+        residual_operator=architecture["residual_operator"],
         force_positive_weights=bool(
             saved_args.get("force_positive_weights", False)
+        ),
+        force_positive_pointwise_weights=bool(
+            architecture["force_positive_pointwise_weights"]
         ),
         init_delay=float(saved_args.get("init_delay", 0.0)),
         stage_delays=tuple(float(value) for value in architecture["stage_delays"]),
