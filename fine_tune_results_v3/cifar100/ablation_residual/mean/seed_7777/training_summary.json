@@ -1,0 +1,16 @@
+{
+  "best_epoch": 185,
+  "last_epoch": 215,
+  "best_validation_accuracy": 72.86,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.7517484184265137,
+    "accuracy": 71.83,
+    "samples": 10000,
+    "seconds": 17.240061044692993
+  },
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\mean\\seed_7777\\best_checkpoint.pth",
+  "last_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\mean\\seed_7777\\last_checkpoint.pth"
+}

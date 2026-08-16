@@ -44,8 +44,8 @@ foreach ($seed in $seeds) {
         -Label "minimum seed=$seed"
 }
 
-foreach ($operator in $operators) {
-    foreach ($seed in $seeds) {
+foreach ($seed in $seeds) {
+    foreach ($operator in $operators) {
         $sourceCheckpoint = Join-Path $PSScriptRoot (
             "results\cifar100\downsample_dense_dwconv_dense\seed_$seed\best_checkpoint.pth"
         )

@@ -1,0 +1,132 @@
+{
+  "experiment": {
+    "experiment_name": "cifar100_residual_mean_seed42_seed42",
+    "date_time": "2026-08-16T08:01:37+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\mean\\seed_42",
+    "notes": "Reviewer 1 Comment 4: Fully-TTFS residual fusion ablation initialized from the matched dense best checkpoint",
+    "seed": 42,
+    "status": "completed",
+    "updated_at": "2026-08-16T10:02:15+03:30"
+  },
+  "dataset": {
+    "dataset_name": "CIFAR-100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ],
+    "train_sample_count": 45000,
+    "validation_sample_count": 5000,
+    "test_sample_count": 10000,
+    "preprocessing": "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding",
+    "augmentation": "training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only"
+  },
+  "architecture": {
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "parameter_count": 20925796,
+    "stem_kernel": 3,
+    "stem_stride": 1,
+    "stem_padding": 1,
+    "depthwise_kernel_size": 3,
+    "depthwise_mode": "ttfs",
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "downsample_mode": "ttfs",
+    "residual_operator": "mean",
+    "pw1_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "spike_dropout": 0.0,
+    "delay_enabled": true,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "t_min": 0.0,
+    "t_max": 1.0
+  },
+  "training": {
+    "epochs": 250,
+    "batch_size": 128,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0001,
+    "convolution_delay_learning_rate": null,
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 3,
+    "lr_scheduler_factor": 0.85,
+    "minimum_learning_rate": 1e-06,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "head_dropout": 0.1,
+    "mixup_alpha": 0.2,
+    "cutmix_alpha": 1.0,
+    "randaugment": true,
+    "randaugment_num_ops": 2,
+    "randaugment_magnitude": 9,
+    "random_erasing": 0.1,
+    "early_stopping_patience": 30,
+    "ema_enabled": false,
+    "ema_decay": null,
+    "pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42\\best_checkpoint.pth",
+    "pretrained_initialization": {
+      "source_state": "ema",
+      "source_parameter_keys": 144,
+      "transferred_parameter_keys": 144,
+      "initialized_delay_keys": [
+        "downsample_layers.1.0.D_conv",
+        "downsample_layers.2.0.D_conv",
+        "downsample_layers.3.0.D_conv",
+        "stages.0.0.dwconv.D_conv",
+        "stages.0.1.dwconv.D_conv",
+        "stages.1.0.dwconv.D_conv",
+        "stages.1.1.dwconv.D_conv",
+        "stages.2.0.dwconv.D_conv",
+        "stages.2.1.dwconv.D_conv",
+        "stages.2.2.dwconv.D_conv",
+        "stages.2.3.dwconv.D_conv",
+        "stages.2.4.dwconv.D_conv",
+        "stages.2.5.dwconv.D_conv",
+        "stages.3.0.dwconv.D_conv",
+        "stages.3.1.dwconv.D_conv"
+      ],
+      "initialized_gate_keys": [],
+      "source_residual_operator": "min",
+      "target_residual_operator": "mean",
+      "missing_keys": [],
+      "unexpected_keys": [],
+      "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42\\best_checkpoint.pth"
+    },
+    "constrained_finetune_initialization": null
+  },
+  "results": {
+    "best_epoch": 226,
+    "best_validation_accuracy": 72.72,
+    "final_train_accuracy": 68.57191057318458,
+    "final_validation_accuracy": 72.26,
+    "test_accuracy": 72.33,
+    "test_loss": 1.72087830619812,
+    "training_time_seconds": 7147.139392852783,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\mean\\seed_42\\best_checkpoint.pth"
+  },
+  "optional_evaluation": {
+    "activation_sparsity": null,
+    "dense_macs_per_sample": null,
+    "theoretical_synops_per_sample": null
+  }
+}

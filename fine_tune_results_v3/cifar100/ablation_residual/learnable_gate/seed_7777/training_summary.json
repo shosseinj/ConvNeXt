@@ -1,0 +1,16 @@
+{
+  "best_epoch": 211,
+  "last_epoch": 241,
+  "best_validation_accuracy": 73.0,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.748567744064331,
+    "accuracy": 71.64,
+    "samples": 10000,
+    "seconds": 12.362390518188477
+  },
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\learnable_gate\\seed_7777\\best_checkpoint.pth",
+  "last_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_residual\\learnable_gate\\seed_7777\\last_checkpoint.pth"
+}
