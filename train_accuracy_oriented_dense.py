@@ -49,6 +49,7 @@ def parse_args():
     parser.add_argument("--split_seed", type=int, default=2026)
     parser.add_argument("--resume", default="")
     parser.add_argument("--imagenet_checkpoint", default="official")
+    parser.add_argument("--interpolate_imagenet_convs", type=str2bool, default=False)
     parser.add_argument("--refinement_checkpoint", default="")
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=300)
@@ -267,10 +268,29 @@ def load_imagenet_source(specification):
     return {key.removeprefix("module."): value for key, value in state.items()}, source, state_key
 
 
-def transfer_imagenet_weights(model, specification):
+def resize_conv_kernel(source, target_shape):
+    """Resize spatial kernel axes while preserving each filter's L2 magnitude."""
+    if source.ndim != 4 or len(target_shape) != 4:
+        raise ValueError("Convolution interpolation requires rank-4 tensors")
+    if tuple(source.shape[:2]) != tuple(target_shape[:2]):
+        raise ValueError(
+            f"Convolution channel mismatch: {tuple(source.shape[:2])} != {tuple(target_shape[:2])}"
+        )
+    original_dtype = source.dtype
+    flat = source.detach().float().reshape(-1, 1, source.shape[-2], source.shape[-1])
+    resized = F.interpolate(
+        flat, size=tuple(target_shape[-2:]), mode="bicubic", align_corners=True
+    )
+    source_norm = flat.flatten(1).norm(dim=1, keepdim=True)
+    resized_norm = resized.flatten(1).norm(dim=1, keepdim=True).clamp_min(1e-12)
+    resized = resized * (source_norm / resized_norm).view(-1, 1, 1, 1)
+    return resized.reshape(target_shape).to(dtype=original_dtype)
+
+
+def transfer_imagenet_weights(model, specification, interpolate_convolutions=False):
     source_state, source, state_key = load_imagenet_source(specification)
     target_state = model.state_dict()
-    transferred, skipped_source = [], []
+    transferred, interpolated, skipped_source = [], [], []
     def allowed(key):
         if key in {"norm.weight", "norm.bias"}:
             return True
@@ -287,6 +307,27 @@ def transfer_imagenet_weights(model, specification):
             # The compact model intentionally takes only blocks that exist in its state dict.
             target_state[key] = value.detach().clone()
             transferred.append(key)
+        elif (
+            interpolate_convolutions
+            and key in target_state
+            and key.endswith(".weight")
+            and value.ndim == 4
+            and target_state[key].ndim == 4
+            and tuple(value.shape[:2]) == tuple(target_state[key].shape[:2])
+            and (key.startswith("downsample_layers.") or ".dwconv.weight" in key)
+        ):
+            target_state[key] = resize_conv_kernel(value, target_state[key].shape)
+            transferred.append(key)
+            interpolated.append(key)
+        elif (
+            interpolate_convolutions
+            and key in target_state
+            and key.endswith(".bias")
+            and target_state[key].shape == value.shape
+            and (key.startswith("downsample_layers.") or ".dwconv.bias" in key)
+        ):
+            target_state[key] = value.detach().clone()
+            transferred.append(key)
         else:
             skipped_source.append(key)
     model.load_state_dict(target_state, strict=True)
@@ -298,6 +339,11 @@ def transfer_imagenet_weights(model, specification):
         "source": source,
         "source_state_key": state_key,
         "transferred_keys": sorted(transferred),
+        "interpolated_convolution_keys": sorted(interpolated),
+        "convolution_interpolation": {
+            "enabled": bool(interpolate_convolutions),
+            "method": "bicubic_spatial_per_filter_l2_preserving",
+        },
         "newly_initialized_keys": newly_initialized,
         "skipped_source_keys": sorted(skipped_source),
         "transferred_count": len(transferred),
@@ -444,7 +490,11 @@ def main():
         if not isinstance(transfer, dict):
             raise RuntimeError("Refinement source is missing pretrained-transfer lineage")
     else:
-        transfer = transfer_imagenet_weights(model, args.imagenet_checkpoint)
+        transfer = transfer_imagenet_weights(
+            model,
+            args.imagenet_checkpoint,
+            interpolate_convolutions=args.interpolate_imagenet_convs,
+        )
     if refinement is not None:
         backbone_params = [parameter for name, parameter in model.named_parameters() if not name.startswith("head.")]
         classifier_params = [parameter for name, parameter in model.named_parameters() if name.startswith("head.")]

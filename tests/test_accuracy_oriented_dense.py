@@ -9,6 +9,7 @@ from evaluate_accuracy_oriented_dense import integrity, make_views
 from models.accuracy_convnext import AccuracyConvNeXt, DenseConvNeXtBlock, architecture_metadata
 from train_accuracy_oriented_dense import (
     initialize_refinement,
+    resize_conv_kernel,
     scheduled_augmentation,
     transfer_imagenet_weights,
     update_overfitting_state,
@@ -41,6 +42,34 @@ class AccuracyOrientedDenseTests(unittest.TestCase):
         self.assertTrue(torch.equal(model.downsample_layers[0][0].weight, original_stem))
         self.assertNotIn("head.weight", report["transferred_keys"])
         self.assertFalse(any("dwconv" in key for key in report["transferred_keys"]))
+
+    def test_interpolated_convolution_transfer_preserves_filter_norms(self):
+        model = AccuracyConvNeXt(10, depths=(1, 1, 1, 1), dims=(8, 16, 32, 64))
+        source = {key: value.detach().clone() for key, value in model.state_dict().items()}
+        source["downsample_layers.0.0.weight"] = torch.randn(8, 3, 4, 4)
+        source["stages.0.0.dwconv.weight"] = torch.randn(8, 1, 7, 7)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "source.pth"
+            torch.save({"model": source}, path)
+            report = transfer_imagenet_weights(
+                model, str(path), interpolate_convolutions=True
+            )
+        self.assertIn(
+            "downsample_layers.0.0.weight", report["interpolated_convolution_keys"]
+        )
+        self.assertIn(
+            "stages.0.0.dwconv.weight", report["interpolated_convolution_keys"]
+        )
+        expected = resize_conv_kernel(
+            source["stages.0.0.dwconv.weight"], (8, 1, 3, 3)
+        )
+        torch.testing.assert_close(
+            model.state_dict()["stages.0.0.dwconv.weight"], expected
+        )
+        torch.testing.assert_close(
+            source["stages.0.0.dwconv.weight"].flatten(1).norm(dim=1),
+            expected.flatten(1).norm(dim=1),
+        )
 
     def test_strict_round_trip_and_ten_views(self):
         model = AccuracyConvNeXt(10, depths=(1, 1, 1, 1), dims=(8, 16, 32, 64))

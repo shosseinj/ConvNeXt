@@ -1,9 +1,9 @@
 {
   "dataset": "cifar10",
-  "checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v3\\cifar10\\gradual_refinement\\seed_42\\best_checkpoint.pth",
+  "checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar10\\interpolated_imagenet_pretrain\\seed_42\\best_checkpoint.pth",
   "weights_source": "ema",
-  "best_validation_accuracy": 94.94,
-  "best_epoch": 11,
+  "best_validation_accuracy": 97.56,
+  "best_epoch": 270,
   "architecture": {
     "model_type": "fully_dense_ann",
     "num_classes": 10,
@@ -39,20 +39,20 @@
       "views_per_model": 1,
       "forward_passes_per_sample": 1,
       "samples": 10000,
-      "correct": 9389,
-      "accuracy": 93.89,
-      "loss": 0.2336662425518036,
-      "seconds": 11.329531908035278
+      "correct": 9704,
+      "accuracy": 97.04,
+      "loss": 0.20812604062557222,
+      "seconds": 11.117166519165039
     },
     {
       "mode": "flip_shift",
       "views_per_model": 10,
       "forward_passes_per_sample": 10,
       "samples": 10000,
-      "correct": 9478,
-      "accuracy": 94.78,
-      "loss": 0.2053827229499817,
-      "seconds": 6.415427207946777
+      "correct": 9733,
+      "accuracy": 97.33,
+      "loss": 0.2031583713531494,
+      "seconds": 6.649125337600708
     }
   ]
 }

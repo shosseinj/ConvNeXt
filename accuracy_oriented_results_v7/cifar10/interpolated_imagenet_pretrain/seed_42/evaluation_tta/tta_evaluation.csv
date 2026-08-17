@@ -1,0 +1,3 @@
+mode,views_per_model,forward_passes_per_sample,samples,correct,accuracy,loss,seconds
+none,1,1,10000,9704,97.04,0.20812604062557222,11.117166519165039
+flip_shift,10,10,10000,9733,97.33,0.2031583713531494,6.649125337600708
