@@ -1,0 +1,30 @@
+{
+  "dataset": "cifar10",
+  "seed": 42,
+  "split_seed": 2026,
+  "training_stage": "checkpoint_refinement",
+  "refinement_initialization": {
+    "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v2\\cifar10\\fully_dense_refinement\\seed_42\\best_checkpoint.pth",
+    "source_weights": "ema",
+    "source_best_epoch": 37,
+    "source_best_validation_accuracy": 94.94,
+    "fresh_training_state": true
+  },
+  "augmentation_schedule_state": {
+    "active_phase": "middle",
+    "restored_phase": null,
+    "overfit_counter": 1,
+    "previous_validation_loss": 0.1962151123046875
+  },
+  "best_epoch": 11,
+  "best_validation_accuracy": 94.94,
+  "test_metrics": {
+    "loss": 0.23366685104370116,
+    "accuracy": 93.89,
+    "samples": 10000
+  },
+  "last_epoch": 26,
+  "early_stopped": true,
+  "training_time_seconds": 408.99768447875977,
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v3\\cifar10\\gradual_refinement\\seed_42\\best_checkpoint.pth"
+}

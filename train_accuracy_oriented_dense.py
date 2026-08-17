@@ -68,6 +68,11 @@ def parse_args():
     parser.add_argument("--randaugment_magnitude", type=int, default=9)
     parser.add_argument("--random_erasing", type=float, default=0.1)
     parser.add_argument("--drop_path", type=float, default=0.1)
+    parser.add_argument(
+        "--augmentation_schedule",
+        choices=("static", "refinement60", "lowaug30"),
+        default="static",
+    )
     parser.add_argument("--ema_decay", type=float, default=0.9999)
     parser.add_argument("--early_stopping_patience", type=int, default=50)
     parser.add_argument("--amp", type=str2bool, default=True)
@@ -89,16 +94,27 @@ def seed_everything(seed):
     torch.cuda.manual_seed_all(seed)
 
 
-def build_loaders(args):
+def build_loaders(args, augmentation=None):
     dataset_class, _, mean, std = DATASETS[args.dataset]
-    train_transform = transforms.Compose([
+    augmentation = augmentation or {
+        "randaugment_enabled": True,
+        "randaugment_magnitude": args.randaugment_magnitude,
+        "random_erasing": args.random_erasing,
+    }
+    train_transforms = [
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
-        transforms.RandAugment(args.randaugment_num_ops, args.randaugment_magnitude),
+    ]
+    if augmentation.get("randaugment_enabled", True):
+        train_transforms.append(transforms.RandAugment(
+            args.randaugment_num_ops, int(augmentation["randaugment_magnitude"])
+        ))
+    train_transforms.extend([
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
-        transforms.RandomErasing(p=args.random_erasing),
+        transforms.RandomErasing(p=float(augmentation["random_erasing"])),
     ])
+    train_transform = transforms.Compose(train_transforms)
     eval_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
     train_augmented = dataset_class(args.data_path, train=True, transform=train_transform, download=args.download)
     train_clean = dataset_class(args.data_path, train=True, transform=eval_transform, download=args.download)
@@ -113,6 +129,118 @@ def build_loaders(args):
                                    shuffle=False, **common)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, **common)
     return train_loader, validation_loader, test_loader
+
+
+REFINEMENT60_PHASES = {
+    "strong": {
+        "randaugment_enabled": True,
+        "mixup_alpha": 0.10,
+        "cutmix_alpha": 0.50,
+        "randaugment_magnitude": 7,
+        "random_erasing": 0.05,
+        "label_smoothing": 0.05,
+        "drop_path": 0.05,
+    },
+    "middle": {
+        "randaugment_enabled": True,
+        "mixup_alpha": 0.05,
+        "cutmix_alpha": 0.25,
+        "randaugment_magnitude": 4,
+        "random_erasing": 0.02,
+        "label_smoothing": 0.025,
+        "drop_path": 0.025,
+    },
+    "clean": {
+        "randaugment_enabled": True,
+        "mixup_alpha": 0.0,
+        "cutmix_alpha": 0.0,
+        "randaugment_magnitude": 2,
+        "random_erasing": 0.0,
+        "label_smoothing": 0.01,
+        "drop_path": 0.0,
+    },
+}
+
+LOWAUG30_PHASES = {
+    "light": {
+        "mixup_alpha": 0.02,
+        "cutmix_alpha": 0.10,
+        "randaugment_enabled": True,
+        "randaugment_magnitude": 2,
+        "random_erasing": 0.0,
+        "label_smoothing": 0.02,
+        "drop_path": 0.01,
+    },
+    "clean_low": {
+        "mixup_alpha": 0.0,
+        "cutmix_alpha": 0.0,
+        "randaugment_enabled": False,
+        "randaugment_magnitude": 0,
+        "random_erasing": 0.0,
+        "label_smoothing": 0.01,
+        "drop_path": 0.0,
+    },
+}
+
+
+def scheduled_augmentation(args, epoch, schedule_state):
+    if args.augmentation_schedule == "static":
+        return "static", {
+            "mixup_alpha": args.mixup_alpha,
+            "cutmix_alpha": args.cutmix_alpha,
+            "randaugment_enabled": True,
+            "randaugment_magnitude": args.randaugment_magnitude,
+            "random_erasing": args.random_erasing,
+            "label_smoothing": args.label_smoothing,
+            "drop_path": args.drop_path,
+        }
+    restored_phase = schedule_state.get("restored_phase")
+    if restored_phase:
+        phases = (
+            LOWAUG30_PHASES
+            if args.augmentation_schedule == "lowaug30"
+            else REFINEMENT60_PHASES
+        )
+        return restored_phase, dict(phases[restored_phase])
+    if args.augmentation_schedule == "lowaug30":
+        phase = "light" if epoch < 10 else "clean_low"
+        return phase, dict(LOWAUG30_PHASES[phase])
+    if epoch < 10:
+        phase = "strong"
+    elif epoch < 45:
+        phase = "middle"
+    else:
+        phase = "clean"
+    return phase, dict(REFINEMENT60_PHASES[phase])
+
+
+def set_drop_path_rate(model, maximum_rate):
+    blocks = [block for stage in model.stages for block in stage]
+    rates = torch.linspace(0, float(maximum_rate), len(blocks)).tolist()
+    for block, rate in zip(blocks, rates):
+        if hasattr(block.drop_path, "drop_prob"):
+            block.drop_path.drop_prob = rate
+
+
+def update_overfitting_state(
+    schedule_state, epoch, phase, validation, best_accuracy,
+    accuracy_drop=0.3, restore_phase=None,
+):
+    previous_loss = schedule_state.get("previous_validation_loss")
+    if epoch >= 10 and schedule_state.get("restored_phase") is None:
+        if previous_loss is not None and validation["loss"] > previous_loss:
+            schedule_state["overfit_counter"] += 1
+        else:
+            schedule_state["overfit_counter"] = 0
+        if (
+            schedule_state["overfit_counter"] >= 3
+            and validation["accuracy"] <= best_accuracy - accuracy_drop
+        ):
+            schedule_state["restored_phase"] = restore_phase or (
+                "strong" if phase == "middle" else "middle"
+            )
+    schedule_state["previous_validation_loss"] = validation["loss"]
+    return schedule_state
 
 
 def unwrap_source(checkpoint):
@@ -225,13 +353,18 @@ class ModelEMA:
 
 
 def mixed_batch(images, labels, args):
-    if images.size(0) < 2:
+    mixup_alpha = float(args.mixup_alpha)
+    cutmix_alpha = float(args.cutmix_alpha)
+    if images.size(0) < 2 or (mixup_alpha <= 0.0 and cutmix_alpha <= 0.0):
         return images, labels, labels, 1.0
     permutation = torch.randperm(images.size(0), device=images.device)
-    if random.getrandbits(1):
-        lam = float(np.random.beta(args.mixup_alpha, args.mixup_alpha))
+    use_mixup = mixup_alpha > 0.0 and (
+        cutmix_alpha <= 0.0 or random.getrandbits(1)
+    )
+    if use_mixup:
+        lam = float(np.random.beta(mixup_alpha, mixup_alpha))
         return lam * images + (1 - lam) * images[permutation], labels, labels[permutation], lam
-    lam = float(np.random.beta(args.cutmix_alpha, args.cutmix_alpha))
+    lam = float(np.random.beta(cutmix_alpha, cutmix_alpha))
     height, width = images.shape[-2:]
     ratio = math.sqrt(1.0 - lam)
     cut_w, cut_h = int(width * ratio), int(height * ratio)
@@ -287,6 +420,12 @@ def main():
     _, num_classes, _, _ = DATASETS[args.dataset]
     model = AccuracyConvNeXt(num_classes=num_classes, drop_path_rate=args.drop_path)
     start_epoch, best_epoch, best_accuracy, stale_epochs = 0, -1, float("-inf"), 0
+    schedule_state = {
+        "active_phase": None,
+        "restored_phase": None,
+        "overfit_counter": 0,
+        "previous_validation_loss": None,
+    }
     transfer = None
     refinement = None
     if args.resume:
@@ -339,27 +478,72 @@ def main():
         best_epoch = int(checkpoint["best_epoch"])
         best_accuracy = float(checkpoint["best_validation_accuracy"])
         stale_epochs = int(checkpoint["stale_epochs"])
+        schedule_state.update(checkpoint.get("augmentation_schedule_state", {}))
     model.to(device)
     ema.module.to(device)
-    train_loader, validation_loader, test_loader = build_loaders(args)
-    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    initial_phase, initial_augmentation = scheduled_augmentation(
+        args, start_epoch, schedule_state
+    )
+    train_loader, validation_loader, test_loader = build_loaders(
+        args, initial_augmentation
+    )
+    loaded_phase = initial_phase
+    validation_criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
     config = vars(args) | {
         "architecture": architecture_metadata(model),
         "pretrained_transfer": transfer,
         "refinement_initialization": refinement,
+        "augmentation_schedule": {
+            "static": None,
+            "refinement60": REFINEMENT60_PHASES,
+            "lowaug30": LOWAUG30_PHASES,
+        }[args.augmentation_schedule],
     }
     (output_dir / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     started = time.time()
     stopped_early = False
     for epoch in range(start_epoch, args.epochs):
-        train_metrics = run_epoch(model, train_loader, device, criterion, args.amp, optimizer, scaler, ema, args)
+        phase, augmentation = scheduled_augmentation(args, epoch, schedule_state)
+        if phase != loaded_phase:
+            train_loader, validation_loader, test_loader = build_loaders(
+                args, augmentation
+            )
+            loaded_phase = phase
+        schedule_state["active_phase"] = phase
+        set_drop_path_rate(model, augmentation["drop_path"])
+        epoch_args = copy.copy(args)
+        epoch_args.mixup_alpha = augmentation["mixup_alpha"]
+        epoch_args.cutmix_alpha = augmentation["cutmix_alpha"]
+        training_criterion = nn.CrossEntropyLoss(
+            label_smoothing=augmentation["label_smoothing"]
+        )
+        train_metrics = run_epoch(
+            model, train_loader, device, training_criterion, args.amp,
+            optimizer, scaler, ema, epoch_args
+        )
         with torch.inference_mode():
-            validation_metrics = run_epoch(ema.module, validation_loader, device, criterion, args.amp)
+            validation_metrics = run_epoch(
+                ema.module, validation_loader, device,
+                validation_criterion, args.amp
+            )
         improved = validation_metrics["accuracy"] > best_accuracy
         if improved:
             best_accuracy, best_epoch, stale_epochs = validation_metrics["accuracy"], epoch, 0
         else:
             stale_epochs += 1
+        if args.augmentation_schedule != "static":
+            update_overfitting_state(
+                schedule_state, epoch, phase,
+                validation_metrics, best_accuracy,
+                accuracy_drop=(
+                    0.2 if args.augmentation_schedule == "lowaug30" else 0.3
+                ),
+                restore_phase=(
+                    "light" if args.augmentation_schedule == "lowaug30" else None
+                ),
+            )
+        else:
+            schedule_state["previous_validation_loss"] = validation_metrics["loss"]
         scheduler.step()
         state = {
             "model": model.state_dict(), "ema": ema.module.state_dict(),
@@ -369,12 +553,16 @@ def main():
             "architecture": architecture_metadata(model), "args": vars(args),
             "pretrained_transfer": transfer,
             "refinement_initialization": refinement,
+            "augmentation_schedule_state": dict(schedule_state),
         }
         torch.save(state, output_dir / "last_checkpoint.pth")
         if improved:
             torch.save(state, output_dir / "best_checkpoint.pth")
         row = {"epoch": epoch, "learning_rates": [g["lr"] for g in optimizer.param_groups],
                "train": train_metrics, "validation": validation_metrics,
+               "augmentation_phase": phase,
+               "augmentation": augmentation,
+               "augmentation_schedule_state": dict(schedule_state),
                "best_validation_accuracy": best_accuracy, "best_epoch": best_epoch}
         with (output_dir / "train_log.jsonl").open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row) + "\n")
@@ -386,11 +574,14 @@ def main():
     ema.module.load_state_dict(best["ema"], strict=True)
     ema.module.to(device)
     with torch.inference_mode():
-        test_metrics = run_epoch(ema.module, test_loader, device, criterion, args.amp)
+        test_metrics = run_epoch(
+            ema.module, test_loader, device, validation_criterion, args.amp
+        )
     summary = {
         "dataset": args.dataset, "seed": args.seed, "split_seed": args.split_seed,
         "training_stage": "checkpoint_refinement" if refinement is not None else "imagenet_initialization",
         "refinement_initialization": refinement,
+        "augmentation_schedule_state": schedule_state,
         "best_epoch": best_epoch, "best_validation_accuracy": best_accuracy,
         "test_metrics": test_metrics, "last_epoch": epoch,
         "early_stopped": stopped_early, "training_time_seconds": time.time() - started,

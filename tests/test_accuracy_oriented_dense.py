@@ -7,7 +7,12 @@ from torch import nn
 
 from evaluate_accuracy_oriented_dense import integrity, make_views
 from models.accuracy_convnext import AccuracyConvNeXt, DenseConvNeXtBlock, architecture_metadata
-from train_accuracy_oriented_dense import initialize_refinement, transfer_imagenet_weights
+from train_accuracy_oriented_dense import (
+    initialize_refinement,
+    scheduled_augmentation,
+    transfer_imagenet_weights,
+    update_overfitting_state,
+)
 
 
 class AccuracyOrientedDenseTests(unittest.TestCase):
@@ -64,6 +69,55 @@ class AccuracyOrientedDenseTests(unittest.TestCase):
         self.assertTrue(all(torch.equal(target.state_dict()[key], ema_state[key]) for key in ema_state))
         self.assertEqual(lineage["source_weights"], "ema")
         self.assertTrue(lineage["fresh_training_state"])
+
+    def test_refinement60_transitions_and_one_way_restore(self):
+        args = type("Args", (), {"augmentation_schedule": "refinement60"})()
+        state = {
+            "restored_phase": None,
+            "overfit_counter": 0,
+            "previous_validation_loss": 1.0,
+        }
+        self.assertEqual(scheduled_augmentation(args, 9, state)[0], "strong")
+        self.assertEqual(scheduled_augmentation(args, 10, state)[0], "middle")
+        self.assertEqual(scheduled_augmentation(args, 45, state)[0], "clean")
+        for epoch, loss in ((10, 1.1), (11, 1.2), (12, 1.3)):
+            update_overfitting_state(
+                state, epoch, "middle",
+                {"loss": loss, "accuracy": 74.0}, 75.0,
+            )
+        self.assertEqual(state["restored_phase"], "strong")
+        self.assertEqual(scheduled_augmentation(args, 45, state)[0], "strong")
+        update_overfitting_state(
+            state, 46, "strong", {"loss": 0.9, "accuracy": 76.0}, 76.0
+        )
+        self.assertEqual(state["restored_phase"], "strong")
+
+    def test_lowaug30_transition_and_restore(self):
+        args = type("Args", (), {"augmentation_schedule": "lowaug30"})()
+        state = {
+            "restored_phase": None,
+            "overfit_counter": 0,
+            "previous_validation_loss": 0.20,
+        }
+        phase, augmentation = scheduled_augmentation(args, 9, state)
+        self.assertEqual(phase, "light")
+        self.assertTrue(augmentation["randaugment_enabled"])
+        phase, augmentation = scheduled_augmentation(args, 10, state)
+        self.assertEqual(phase, "clean_low")
+        self.assertFalse(augmentation["randaugment_enabled"])
+        for epoch, loss in ((10, 0.21), (11, 0.22), (12, 0.23)):
+            update_overfitting_state(
+                state, epoch, "clean_low",
+                {"loss": loss, "accuracy": 94.5}, 94.94,
+                accuracy_drop=0.2, restore_phase="light",
+            )
+        self.assertEqual(state["restored_phase"], "light")
+        self.assertEqual(scheduled_augmentation(args, 20, state)[0], "light")
+        update_overfitting_state(
+            state, 20, "light", {"loss": 0.1, "accuracy": 95.0}, 95.0,
+            accuracy_drop=0.2, restore_phase="light",
+        )
+        self.assertEqual(state["restored_phase"], "light")
 
 
 if __name__ == "__main__":
