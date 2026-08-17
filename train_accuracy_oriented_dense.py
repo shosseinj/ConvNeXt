@@ -49,12 +49,15 @@ def parse_args():
     parser.add_argument("--split_seed", type=int, default=2026)
     parser.add_argument("--resume", default="")
     parser.add_argument("--imagenet_checkpoint", default="official")
+    parser.add_argument("--refinement_checkpoint", default="")
     parser.add_argument("--download", type=str2bool, default=False)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--lr_transferred", type=float, default=2e-5)
     parser.add_argument("--lr_new", type=float, default=2e-4)
+    parser.add_argument("--lr_backbone", type=float, default=2e-5)
+    parser.add_argument("--lr_classifier", type=float, default=1e-4)
     parser.add_argument("--min_lr", type=float, default=1e-6)
     parser.add_argument("--warmup_epochs", type=int, default=10)
     parser.add_argument("--weight_decay", type=float, default=0.05)
@@ -70,6 +73,10 @@ def parse_args():
     parser.add_argument("--amp", type=str2bool, default=True)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
+    if args.resume and args.refinement_checkpoint:
+        parser.error("--resume and --refinement_checkpoint are mutually exclusive")
+    if args.refinement_checkpoint and args.imagenet_checkpoint not in {"", "official"}:
+        parser.error("--refinement_checkpoint cannot be combined with an explicit --imagenet_checkpoint")
     if args.resume and args.imagenet_checkpoint not in {"", "official"}:
         parser.error("--resume cannot be combined with an explicit --imagenet_checkpoint")
     return args
@@ -170,6 +177,36 @@ def transfer_imagenet_weights(model, specification):
     }
 
 
+def initialize_refinement(model, checkpoint_name, dataset):
+    checkpoint_path = Path(checkpoint_name)
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Refinement checkpoint not found: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    source_architecture = checkpoint.get("architecture")
+    target_architecture = architecture_metadata(model)
+    if source_architecture != target_architecture:
+        raise RuntimeError(
+            "Refinement checkpoint architecture mismatch: "
+            f"source={source_architecture}, target={target_architecture}"
+        )
+    source_args = checkpoint.get("args", {})
+    if source_args.get("dataset") not in {None, dataset}:
+        raise RuntimeError(
+            f"Refinement checkpoint dataset mismatch: {source_args.get('dataset')} != {dataset}"
+        )
+    state = checkpoint.get("ema")
+    if not isinstance(state, dict):
+        raise RuntimeError("Refinement checkpoint is missing authoritative EMA weights")
+    model.load_state_dict(state, strict=True)
+    return {
+        "source_checkpoint": str(checkpoint_path.resolve()),
+        "source_weights": "ema",
+        "source_best_epoch": checkpoint.get("best_epoch"),
+        "source_best_validation_accuracy": checkpoint.get("best_validation_accuracy"),
+        "fresh_training_state": True,
+    }
+
+
 class ModelEMA:
     def __init__(self, model, decay):
         self.module = copy.deepcopy(model).eval()
@@ -251,25 +288,45 @@ def main():
     model = AccuracyConvNeXt(num_classes=num_classes, drop_path_rate=args.drop_path)
     start_epoch, best_epoch, best_accuracy, stale_epochs = 0, -1, float("-inf"), 0
     transfer = None
+    refinement = None
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
         if checkpoint.get("architecture", {}).get("model_type") != "fully_dense_ann":
             raise RuntimeError("Resume checkpoint is not a fully-dense ANN checkpoint")
         model.load_state_dict(checkpoint["model"], strict=True)
         transfer = checkpoint["pretrained_transfer"]
+        refinement = checkpoint.get("refinement_initialization")
+    elif args.refinement_checkpoint:
+        refinement = initialize_refinement(model, args.refinement_checkpoint, args.dataset)
+        source_checkpoint = torch.load(
+            args.refinement_checkpoint, map_location="cpu", weights_only=False
+        )
+        transfer = source_checkpoint.get("pretrained_transfer")
+        if not isinstance(transfer, dict):
+            raise RuntimeError("Refinement source is missing pretrained-transfer lineage")
     else:
         transfer = transfer_imagenet_weights(model, args.imagenet_checkpoint)
-    transferred_names = set(transfer["transferred_keys"])
-    transferred_params, new_params = [], []
-    for name, parameter in model.named_parameters():
-        (transferred_params if name in transferred_names else new_params).append(parameter)
-    optimizer = torch.optim.AdamW([
-        {"params": transferred_params, "lr": args.lr_transferred, "initial_lr": args.lr_transferred, "name": "transferred"},
-        {"params": new_params, "lr": args.lr_new, "initial_lr": args.lr_new, "name": "new"},
-    ], weight_decay=args.weight_decay)
+    if refinement is not None:
+        backbone_params = [parameter for name, parameter in model.named_parameters() if not name.startswith("head.")]
+        classifier_params = [parameter for name, parameter in model.named_parameters() if name.startswith("head.")]
+        optimizer = torch.optim.AdamW([
+            {"params": backbone_params, "lr": args.lr_backbone, "initial_lr": args.lr_backbone, "name": "backbone"},
+            {"params": classifier_params, "lr": args.lr_classifier, "initial_lr": args.lr_classifier, "name": "classifier"},
+        ], weight_decay=args.weight_decay)
+        scheduler_lrs = (args.lr_backbone, args.lr_classifier)
+    else:
+        transferred_names = set(transfer["transferred_keys"])
+        transferred_params, new_params = [], []
+        for name, parameter in model.named_parameters():
+            (transferred_params if name in transferred_names else new_params).append(parameter)
+        optimizer = torch.optim.AdamW([
+            {"params": transferred_params, "lr": args.lr_transferred, "initial_lr": args.lr_transferred, "name": "transferred"},
+            {"params": new_params, "lr": args.lr_new, "initial_lr": args.lr_new, "name": "new"},
+        ], weight_decay=args.weight_decay)
+        scheduler_lrs = (args.lr_transferred, args.lr_new)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[
-        lambda epoch: lr_lambda(epoch, args.warmup_epochs, args.epochs, args.min_lr / args.lr_transferred),
-        lambda epoch: lr_lambda(epoch, args.warmup_epochs, args.epochs, args.min_lr / args.lr_new),
+        lambda epoch, target=scheduler_lrs[0]: lr_lambda(epoch, args.warmup_epochs, args.epochs, args.min_lr / target),
+        lambda epoch, target=scheduler_lrs[1]: lr_lambda(epoch, args.warmup_epochs, args.epochs, args.min_lr / target),
     ])
     scaler = torch.amp.GradScaler("cuda", enabled=args.amp and device.type == "cuda")
     ema = ModelEMA(model, args.ema_decay)
@@ -286,7 +343,11 @@ def main():
     ema.module.to(device)
     train_loader, validation_loader, test_loader = build_loaders(args)
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    config = vars(args) | {"architecture": architecture_metadata(model), "pretrained_transfer": transfer}
+    config = vars(args) | {
+        "architecture": architecture_metadata(model),
+        "pretrained_transfer": transfer,
+        "refinement_initialization": refinement,
+    }
     (output_dir / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     started = time.time()
     stopped_early = False
@@ -307,6 +368,7 @@ def main():
             "best_validation_accuracy": best_accuracy, "stale_epochs": stale_epochs,
             "architecture": architecture_metadata(model), "args": vars(args),
             "pretrained_transfer": transfer,
+            "refinement_initialization": refinement,
         }
         torch.save(state, output_dir / "last_checkpoint.pth")
         if improved:
@@ -327,6 +389,8 @@ def main():
         test_metrics = run_epoch(ema.module, test_loader, device, criterion, args.amp)
     summary = {
         "dataset": args.dataset, "seed": args.seed, "split_seed": args.split_seed,
+        "training_stage": "checkpoint_refinement" if refinement is not None else "imagenet_initialization",
+        "refinement_initialization": refinement,
         "best_epoch": best_epoch, "best_validation_accuracy": best_accuracy,
         "test_metrics": test_metrics, "last_epoch": epoch,
         "early_stopped": stopped_early, "training_time_seconds": time.time() - started,

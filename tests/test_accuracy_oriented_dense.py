@@ -7,7 +7,7 @@ from torch import nn
 
 from evaluate_accuracy_oriented_dense import integrity, make_views
 from models.accuracy_convnext import AccuracyConvNeXt, DenseConvNeXtBlock, architecture_metadata
-from train_accuracy_oriented_dense import transfer_imagenet_weights
+from train_accuracy_oriented_dense import initialize_refinement, transfer_imagenet_weights
 
 
 class AccuracyOrientedDenseTests(unittest.TestCase):
@@ -45,6 +45,25 @@ class AccuracyOrientedDenseTests(unittest.TestCase):
         views = make_views(torch.rand(2, 3, 32, 32), "flip_shift")
         self.assertEqual(len(views), 10)
         self.assertTrue(all(tuple(view.shape) == (2, 3, 32, 32) for view in views))
+
+    def test_refinement_strictly_uses_ema_and_records_lineage(self):
+        source = AccuracyConvNeXt(10, depths=(1, 1, 1, 1), dims=(8, 16, 32, 64))
+        ema_state = {key: torch.full_like(value, 0.125) for key, value in source.state_dict().items()}
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "best_checkpoint.pth"
+            torch.save({
+                "model": source.state_dict(),
+                "ema": ema_state,
+                "architecture": architecture_metadata(source),
+                "args": {"dataset": "cifar10"},
+                "best_epoch": 17,
+                "best_validation_accuracy": 95.0,
+            }, checkpoint_path)
+            target = AccuracyConvNeXt(10, depths=(1, 1, 1, 1), dims=(8, 16, 32, 64))
+            lineage = initialize_refinement(target, checkpoint_path, "cifar10")
+        self.assertTrue(all(torch.equal(target.state_dict()[key], ema_state[key]) for key in ema_state))
+        self.assertEqual(lineage["source_weights"], "ema")
+        self.assertTrue(lineage["fresh_training_state"])
 
 
 if __name__ == "__main__":

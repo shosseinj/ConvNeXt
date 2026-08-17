@@ -1,0 +1,58 @@
+{
+  "dataset": "cifar100",
+  "checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results\\cifar100\\fully_dense\\seed_42\\best_checkpoint.pth",
+  "weights_source": "ema",
+  "best_validation_accuracy": 75.22,
+  "best_epoch": 269,
+  "architecture": {
+    "model_type": "fully_dense_ann",
+    "num_classes": 100,
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "kernel_size": 3,
+    "residual_operator": "sum",
+    "pw1_mode": "dense",
+    "pw2_mode": "dense",
+    "dwconv_mode": "dense",
+    "downsample_mode": "dense",
+    "normalization": "layernorm",
+    "activation": "gelu"
+  },
+  "integrity": {
+    "missing_keys": [],
+    "unexpected_keys": [],
+    "shape_mismatches": []
+  },
+  "results": [
+    {
+      "mode": "none",
+      "views_per_model": 1,
+      "forward_passes_per_sample": 1,
+      "samples": 10000,
+      "correct": 7370,
+      "accuracy": 73.7,
+      "loss": 1.0668327491760254,
+      "seconds": 13.088980674743652
+    },
+    {
+      "mode": "flip_shift",
+      "views_per_model": 10,
+      "forward_passes_per_sample": 10,
+      "samples": 10000,
+      "correct": 7477,
+      "accuracy": 74.77,
+      "loss": 1.0247379074096679,
+      "seconds": 16.25148844718933
+    }
+  ]
+}
