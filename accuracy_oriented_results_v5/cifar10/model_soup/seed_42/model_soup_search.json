@@ -1,0 +1,829 @@
+{
+  "checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v5\\cifar10\\model_soup\\seed_42\\best_checkpoint.pth",
+  "sources": [
+    {
+      "path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v2\\cifar10\\fully_dense_refinement\\seed_42\\best_checkpoint.pth",
+      "best_validation_accuracy": 94.94,
+      "best_epoch": 37,
+      "weights_source": "ema"
+    },
+    {
+      "path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v3\\cifar10\\gradual_refinement\\seed_42\\best_checkpoint.pth",
+      "best_validation_accuracy": 94.94,
+      "best_epoch": 11,
+      "weights_source": "ema"
+    },
+    {
+      "path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v4\\cifar10\\low_augmentation_refinement\\seed_42\\best_checkpoint.pth",
+      "best_validation_accuracy": 95.0,
+      "best_epoch": 3,
+      "weights_source": "ema"
+    }
+  ],
+  "selected": {
+    "index": 0,
+    "weights": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "accuracy": 95.0,
+    "loss": 0.19298159902095793,
+    "correct": 4750,
+    "samples": 5000
+  },
+  "candidates": [
+    {
+      "index": 0,
+      "weights": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "accuracy": 95.0,
+      "loss": 0.19298159902095793,
+      "correct": 4750,
+      "samples": 5000
+    },
+    {
+      "index": 1,
+      "weights": [
+        0.0,
+        0.1,
+        0.9
+      ],
+      "accuracy": 94.98,
+      "loss": 0.19405069296360017,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 2,
+      "weights": [
+        0.0,
+        0.2,
+        0.8
+      ],
+      "accuracy": 94.98,
+      "loss": 0.19515324985980986,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 3,
+      "weights": [
+        0.0,
+        0.3,
+        0.7
+      ],
+      "accuracy": 94.94,
+      "loss": 0.19632624518871308,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 4,
+      "weights": [
+        0.0,
+        0.4,
+        0.6
+      ],
+      "accuracy": 94.92,
+      "loss": 0.19752531025409698,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 5,
+      "weights": [
+        0.0,
+        0.5,
+        0.5
+      ],
+      "accuracy": 94.9,
+      "loss": 0.1988212483882904,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 6,
+      "weights": [
+        0.0,
+        0.6,
+        0.4
+      ],
+      "accuracy": 94.94,
+      "loss": 0.20016320083141326,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 7,
+      "weights": [
+        0.0,
+        0.7,
+        0.3
+      ],
+      "accuracy": 94.92,
+      "loss": 0.2016138822078705,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 8,
+      "weights": [
+        0.0,
+        0.8,
+        0.2
+      ],
+      "accuracy": 94.92,
+      "loss": 0.203079203915596,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 9,
+      "weights": [
+        0.0,
+        0.9,
+        0.1
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20465227041244508,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 10,
+      "weights": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "accuracy": 94.94,
+      "loss": 0.20626650745868683,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 11,
+      "weights": [
+        0.1,
+        0.0,
+        0.9
+      ],
+      "accuracy": 94.96,
+      "loss": 0.19436529698371888,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 12,
+      "weights": [
+        0.1,
+        0.1,
+        0.8
+      ],
+      "accuracy": 94.94,
+      "loss": 0.1955037079811096,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 13,
+      "weights": [
+        0.1,
+        0.2,
+        0.7
+      ],
+      "accuracy": 94.96,
+      "loss": 0.196710906791687,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 14,
+      "weights": [
+        0.1,
+        0.3,
+        0.6
+      ],
+      "accuracy": 94.96,
+      "loss": 0.19794962623119355,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 15,
+      "weights": [
+        0.1,
+        0.4,
+        0.5
+      ],
+      "accuracy": 94.98,
+      "loss": 0.19927888526916504,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 16,
+      "weights": [
+        0.1,
+        0.5,
+        0.4
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20067866053581238,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 17,
+      "weights": [
+        0.1,
+        0.6,
+        0.3
+      ],
+      "accuracy": 94.96,
+      "loss": 0.2021269397497177,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 18,
+      "weights": [
+        0.1,
+        0.7,
+        0.2
+      ],
+      "accuracy": 94.94,
+      "loss": 0.20365531299114228,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 19,
+      "weights": [
+        0.1,
+        0.8,
+        0.1
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20524423384666443,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 20,
+      "weights": [
+        0.1,
+        0.9,
+        0.0
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20688807690143585,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 21,
+      "weights": [
+        0.2,
+        0.0,
+        0.8
+      ],
+      "accuracy": 94.92,
+      "loss": 0.1959715762615204,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 22,
+      "weights": [
+        0.2,
+        0.1,
+        0.7
+      ],
+      "accuracy": 94.92,
+      "loss": 0.197201118016243,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 23,
+      "weights": [
+        0.2,
+        0.2,
+        0.6
+      ],
+      "accuracy": 94.94,
+      "loss": 0.19846977574825286,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 24,
+      "weights": [
+        0.2,
+        0.3,
+        0.5
+      ],
+      "accuracy": 94.94,
+      "loss": 0.1998581267595291,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 25,
+      "weights": [
+        0.2,
+        0.4,
+        0.4
+      ],
+      "accuracy": 94.94,
+      "loss": 0.20128812460899353,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 26,
+      "weights": [
+        0.2,
+        0.5,
+        0.3
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20275223395824432,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 27,
+      "weights": [
+        0.2,
+        0.6,
+        0.2
+      ],
+      "accuracy": 94.96,
+      "loss": 0.2043130521774292,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 28,
+      "weights": [
+        0.2,
+        0.7,
+        0.1
+      ],
+      "accuracy": 95.0,
+      "loss": 0.20597915685176849,
+      "correct": 4750,
+      "samples": 5000
+    },
+    {
+      "index": 29,
+      "weights": [
+        0.2,
+        0.8,
+        0.0
+      ],
+      "accuracy": 94.98,
+      "loss": 0.20767138652801514,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 30,
+      "weights": [
+        0.3,
+        0.0,
+        0.7
+      ],
+      "accuracy": 94.92,
+      "loss": 0.19774586527347565,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 31,
+      "weights": [
+        0.3,
+        0.1,
+        0.6
+      ],
+      "accuracy": 94.88,
+      "loss": 0.19904243719577788,
+      "correct": 4744,
+      "samples": 5000
+    },
+    {
+      "index": 32,
+      "weights": [
+        0.3,
+        0.2,
+        0.5
+      ],
+      "accuracy": 94.92,
+      "loss": 0.2004829015493393,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 33,
+      "weights": [
+        0.3,
+        0.3,
+        0.4
+      ],
+      "accuracy": 94.9,
+      "loss": 0.20191684608459473,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 34,
+      "weights": [
+        0.3,
+        0.4,
+        0.3
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20347866475582121,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 35,
+      "weights": [
+        0.3,
+        0.5,
+        0.2
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20508712768554688,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 36,
+      "weights": [
+        0.3,
+        0.6,
+        0.1
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20675501265525817,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 37,
+      "weights": [
+        0.3,
+        0.7,
+        0.0
+      ],
+      "accuracy": 94.98,
+      "loss": 0.20847140669822692,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 38,
+      "weights": [
+        0.4,
+        0.0,
+        0.6
+      ],
+      "accuracy": 94.9,
+      "loss": 0.19972414913177491,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 39,
+      "weights": [
+        0.4,
+        0.1,
+        0.5
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20114062039852143,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 40,
+      "weights": [
+        0.4,
+        0.2,
+        0.4
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20265588274002075,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 41,
+      "weights": [
+        0.4,
+        0.3,
+        0.3
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20425165421962738,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 42,
+      "weights": [
+        0.4,
+        0.4,
+        0.2
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20587773325443268,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 43,
+      "weights": [
+        0.4,
+        0.5,
+        0.1
+      ],
+      "accuracy": 94.94,
+      "loss": 0.2075626131296158,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 44,
+      "weights": [
+        0.4,
+        0.6,
+        0.0
+      ],
+      "accuracy": 94.94,
+      "loss": 0.20937280530929567,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 45,
+      "weights": [
+        0.5,
+        0.0,
+        0.5
+      ],
+      "accuracy": 94.96,
+      "loss": 0.20190934772491456,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 46,
+      "weights": [
+        0.5,
+        0.1,
+        0.4
+      ],
+      "accuracy": 94.94,
+      "loss": 0.2034873579263687,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 47,
+      "weights": [
+        0.5,
+        0.2,
+        0.3
+      ],
+      "accuracy": 94.9,
+      "loss": 0.2050962330341339,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 48,
+      "weights": [
+        0.5,
+        0.3,
+        0.2
+      ],
+      "accuracy": 94.9,
+      "loss": 0.20676962900161744,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 49,
+      "weights": [
+        0.5,
+        0.4,
+        0.1
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20852713186740876,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 50,
+      "weights": [
+        0.5,
+        0.5,
+        0.0
+      ],
+      "accuracy": 94.92,
+      "loss": 0.2103675080537796,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 51,
+      "weights": [
+        0.6,
+        0.0,
+        0.4
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20436551723480226,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 52,
+      "weights": [
+        0.6,
+        0.1,
+        0.3
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20603121647834777,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 53,
+      "weights": [
+        0.6,
+        0.2,
+        0.2
+      ],
+      "accuracy": 94.9,
+      "loss": 0.2077542118549347,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 54,
+      "weights": [
+        0.6,
+        0.3,
+        0.1
+      ],
+      "accuracy": 94.88,
+      "loss": 0.20958005206584931,
+      "correct": 4744,
+      "samples": 5000
+    },
+    {
+      "index": 55,
+      "weights": [
+        0.6,
+        0.4,
+        0.0
+      ],
+      "accuracy": 94.88,
+      "loss": 0.21145739850997924,
+      "correct": 4744,
+      "samples": 5000
+    },
+    {
+      "index": 56,
+      "weights": [
+        0.7,
+        0.0,
+        0.3
+      ],
+      "accuracy": 94.9,
+      "loss": 0.20712323870658875,
+      "correct": 4745,
+      "samples": 5000
+    },
+    {
+      "index": 57,
+      "weights": [
+        0.7,
+        0.1,
+        0.2
+      ],
+      "accuracy": 94.92,
+      "loss": 0.20889874172210693,
+      "correct": 4746,
+      "samples": 5000
+    },
+    {
+      "index": 58,
+      "weights": [
+        0.7,
+        0.2,
+        0.1
+      ],
+      "accuracy": 94.94,
+      "loss": 0.21071572740077973,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 59,
+      "weights": [
+        0.7,
+        0.3,
+        0.0
+      ],
+      "accuracy": 94.94,
+      "loss": 0.21267064216136933,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 60,
+      "weights": [
+        0.8,
+        0.0,
+        0.2
+      ],
+      "accuracy": 94.94,
+      "loss": 0.210107249212265,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 61,
+      "weights": [
+        0.8,
+        0.1,
+        0.1
+      ],
+      "accuracy": 94.94,
+      "loss": 0.21200948231220246,
+      "correct": 4747,
+      "samples": 5000
+    },
+    {
+      "index": 62,
+      "weights": [
+        0.8,
+        0.2,
+        0.0
+      ],
+      "accuracy": 94.96,
+      "loss": 0.21401301584243773,
+      "correct": 4748,
+      "samples": 5000
+    },
+    {
+      "index": 63,
+      "weights": [
+        0.9,
+        0.0,
+        0.1
+      ],
+      "accuracy": 94.98,
+      "loss": 0.21336396179199218,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 64,
+      "weights": [
+        0.9,
+        0.1,
+        0.0
+      ],
+      "accuracy": 94.98,
+      "loss": 0.21537392761707305,
+      "correct": 4749,
+      "samples": 5000
+    },
+    {
+      "index": 65,
+      "weights": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "accuracy": 94.94,
+      "loss": 0.21687355976104736,
+      "correct": 4747,
+      "samples": 5000
+    }
+  ]
+}
