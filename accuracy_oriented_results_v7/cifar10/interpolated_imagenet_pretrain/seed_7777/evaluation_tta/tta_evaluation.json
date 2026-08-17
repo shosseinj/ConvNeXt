@@ -1,0 +1,58 @@
+{
+  "dataset": "cifar10",
+  "checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar10\\interpolated_imagenet_pretrain\\seed_7777\\best_checkpoint.pth",
+  "weights_source": "ema",
+  "best_validation_accuracy": 97.74,
+  "best_epoch": 241,
+  "architecture": {
+    "model_type": "fully_dense_ann",
+    "num_classes": 10,
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "kernel_size": 3,
+    "residual_operator": "sum",
+    "pw1_mode": "dense",
+    "pw2_mode": "dense",
+    "dwconv_mode": "dense",
+    "downsample_mode": "dense",
+    "normalization": "layernorm",
+    "activation": "gelu"
+  },
+  "integrity": {
+    "missing_keys": [],
+    "unexpected_keys": [],
+    "shape_mismatches": []
+  },
+  "results": [
+    {
+      "mode": "none",
+      "views_per_model": 1,
+      "forward_passes_per_sample": 1,
+      "samples": 10000,
+      "correct": 9701,
+      "accuracy": 97.01,
+      "loss": 0.2094389622926712,
+      "seconds": 11.129777193069458
+    },
+    {
+      "mode": "flip_shift",
+      "views_per_model": 10,
+      "forward_passes_per_sample": 10,
+      "samples": 10000,
+      "correct": 9715,
+      "accuracy": 97.15,
+      "loss": 0.204256941986084,
+      "seconds": 6.394700765609741
+    }
+  ]
+}
