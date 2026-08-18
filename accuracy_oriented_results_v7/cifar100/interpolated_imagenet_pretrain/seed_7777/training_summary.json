@@ -1,0 +1,24 @@
+{
+  "dataset": "cifar100",
+  "seed": 7777,
+  "split_seed": 2026,
+  "training_stage": "imagenet_initialization",
+  "refinement_initialization": null,
+  "augmentation_schedule_state": {
+    "active_phase": "static",
+    "restored_phase": null,
+    "overfit_counter": 0,
+    "previous_validation_loss": 0.6144526489257812
+  },
+  "best_epoch": 288,
+  "best_validation_accuracy": 86.04,
+  "test_metrics": {
+    "loss": 0.6505813858032227,
+    "accuracy": 85.03,
+    "samples": 10000
+  },
+  "last_epoch": 299,
+  "early_stopped": false,
+  "training_time_seconds": 5125.243933439255,
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar100\\interpolated_imagenet_pretrain\\seed_7777\\best_checkpoint.pth"
+}

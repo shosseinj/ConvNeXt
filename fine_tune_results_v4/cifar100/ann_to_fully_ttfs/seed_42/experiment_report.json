@@ -1,0 +1,649 @@
+{
+  "experiment": {
+    "experiment_name": "cifar100_ann_to_fully_ttfs_seed42",
+    "date_time": "2026-08-17T18:28:15+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v4\\cifar100\\ann_to_fully_ttfs\\seed_42",
+    "notes": "Fully-TTFS fine-tuning from the CIFAR-100 seed-42 accuracy-oriented ANN EMA checkpoint",
+    "seed": 42,
+    "status": "completed",
+    "updated_at": "2026-08-17T21:26:11+03:30"
+  },
+  "dataset": {
+    "dataset_name": "CIFAR-100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ],
+    "train_sample_count": 45000,
+    "validation_sample_count": 5000,
+    "test_sample_count": 10000,
+    "preprocessing": "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding",
+    "augmentation": "training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=True,ops=2,magnitude=9), RandomErasing(p=0.1), Mixup(alpha=0.2), CutMix(alpha=1.0); validation/test: ToTensor only"
+  },
+  "architecture": {
+    "dims": [
+      96,
+      192,
+      384,
+      768
+    ],
+    "depths": [
+      2,
+      2,
+      6,
+      2
+    ],
+    "parameter_count": 20925796,
+    "stem_kernel": 3,
+    "stem_stride": 1,
+    "stem_padding": 1,
+    "depthwise_kernel_size": 3,
+    "depthwise_mode": "ttfs",
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "downsample_mode": "ttfs",
+    "residual_operator": "min",
+    "pw1_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "spike_dropout": 0.0,
+    "delay_enabled": true,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "t_min": 0.0,
+    "t_max": 1.0
+  },
+  "training": {
+    "epochs": 250,
+    "batch_size": 128,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0001,
+    "convolution_delay_learning_rate": null,
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 3,
+    "lr_scheduler_factor": 0.85,
+    "minimum_learning_rate": 1e-06,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "head_dropout": 0.1,
+    "mixup_alpha": 0.2,
+    "cutmix_alpha": 1.0,
+    "randaugment": true,
+    "randaugment_num_ops": 2,
+    "randaugment_magnitude": 9,
+    "random_erasing": 0.1,
+    "early_stopping_patience": 30,
+    "ema_enabled": false,
+    "ema_decay": null,
+    "pretrained_checkpoint": null,
+    "ann_pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar100\\interpolated_imagenet_pretrain\\seed_42\\best_checkpoint.pth",
+    "pretrained_initialization": {
+      "initialization_type": "fully_dense_ann_to_fully_ttfs",
+      "source_state": "ema",
+      "source_parameter_keys": 128,
+      "transferred_parameter_keys": 120,
+      "parameter_mapping": [
+        {
+          "source": "downsample_layers.0.0.weight",
+          "target": "downsample_layers.0.0.weight"
+        },
+        {
+          "source": "downsample_layers.0.0.bias",
+          "target": "downsample_layers.0.0.bias"
+        },
+        {
+          "source": "downsample_layers.1.1.weight",
+          "target": "downsample_layers.1.0.conv.weight"
+        },
+        {
+          "source": "downsample_layers.1.1.bias",
+          "target": "downsample_layers.1.0.conv.bias"
+        },
+        {
+          "source": "downsample_layers.2.1.weight",
+          "target": "downsample_layers.2.0.conv.weight"
+        },
+        {
+          "source": "downsample_layers.2.1.bias",
+          "target": "downsample_layers.2.0.conv.bias"
+        },
+        {
+          "source": "downsample_layers.3.1.weight",
+          "target": "downsample_layers.3.0.conv.weight"
+        },
+        {
+          "source": "downsample_layers.3.1.bias",
+          "target": "downsample_layers.3.0.conv.bias"
+        },
+        {
+          "source": "stages.0.0.gamma",
+          "target": "stages.0.0.gamma"
+        },
+        {
+          "source": "stages.0.0.dwconv.weight",
+          "target": "stages.0.0.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.0.0.dwconv.bias",
+          "target": "stages.0.0.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.0.0.norm.weight",
+          "target": "stages.0.0.norm.weight"
+        },
+        {
+          "source": "stages.0.0.norm.bias",
+          "target": "stages.0.0.norm.bias"
+        },
+        {
+          "source": "stages.0.0.pwconv1.weight",
+          "target": "stages.0.0.pw1.weight"
+        },
+        {
+          "source": "stages.0.0.pwconv1.bias",
+          "target": "stages.0.0.pw1.bias"
+        },
+        {
+          "source": "stages.0.0.pwconv2.weight",
+          "target": "stages.0.0.pw2.weight"
+        },
+        {
+          "source": "stages.0.0.pwconv2.bias",
+          "target": "stages.0.0.pw2.bias"
+        },
+        {
+          "source": "stages.0.1.gamma",
+          "target": "stages.0.1.gamma"
+        },
+        {
+          "source": "stages.0.1.dwconv.weight",
+          "target": "stages.0.1.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.0.1.dwconv.bias",
+          "target": "stages.0.1.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.0.1.norm.weight",
+          "target": "stages.0.1.norm.weight"
+        },
+        {
+          "source": "stages.0.1.norm.bias",
+          "target": "stages.0.1.norm.bias"
+        },
+        {
+          "source": "stages.0.1.pwconv1.weight",
+          "target": "stages.0.1.pw1.weight"
+        },
+        {
+          "source": "stages.0.1.pwconv1.bias",
+          "target": "stages.0.1.pw1.bias"
+        },
+        {
+          "source": "stages.0.1.pwconv2.weight",
+          "target": "stages.0.1.pw2.weight"
+        },
+        {
+          "source": "stages.0.1.pwconv2.bias",
+          "target": "stages.0.1.pw2.bias"
+        },
+        {
+          "source": "stages.1.0.gamma",
+          "target": "stages.1.0.gamma"
+        },
+        {
+          "source": "stages.1.0.dwconv.weight",
+          "target": "stages.1.0.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.1.0.dwconv.bias",
+          "target": "stages.1.0.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.1.0.norm.weight",
+          "target": "stages.1.0.norm.weight"
+        },
+        {
+          "source": "stages.1.0.norm.bias",
+          "target": "stages.1.0.norm.bias"
+        },
+        {
+          "source": "stages.1.0.pwconv1.weight",
+          "target": "stages.1.0.pw1.weight"
+        },
+        {
+          "source": "stages.1.0.pwconv1.bias",
+          "target": "stages.1.0.pw1.bias"
+        },
+        {
+          "source": "stages.1.0.pwconv2.weight",
+          "target": "stages.1.0.pw2.weight"
+        },
+        {
+          "source": "stages.1.0.pwconv2.bias",
+          "target": "stages.1.0.pw2.bias"
+        },
+        {
+          "source": "stages.1.1.gamma",
+          "target": "stages.1.1.gamma"
+        },
+        {
+          "source": "stages.1.1.dwconv.weight",
+          "target": "stages.1.1.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.1.1.dwconv.bias",
+          "target": "stages.1.1.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.1.1.norm.weight",
+          "target": "stages.1.1.norm.weight"
+        },
+        {
+          "source": "stages.1.1.norm.bias",
+          "target": "stages.1.1.norm.bias"
+        },
+        {
+          "source": "stages.1.1.pwconv1.weight",
+          "target": "stages.1.1.pw1.weight"
+        },
+        {
+          "source": "stages.1.1.pwconv1.bias",
+          "target": "stages.1.1.pw1.bias"
+        },
+        {
+          "source": "stages.1.1.pwconv2.weight",
+          "target": "stages.1.1.pw2.weight"
+        },
+        {
+          "source": "stages.1.1.pwconv2.bias",
+          "target": "stages.1.1.pw2.bias"
+        },
+        {
+          "source": "stages.2.0.gamma",
+          "target": "stages.2.0.gamma"
+        },
+        {
+          "source": "stages.2.0.dwconv.weight",
+          "target": "stages.2.0.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.0.dwconv.bias",
+          "target": "stages.2.0.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.0.norm.weight",
+          "target": "stages.2.0.norm.weight"
+        },
+        {
+          "source": "stages.2.0.norm.bias",
+          "target": "stages.2.0.norm.bias"
+        },
+        {
+          "source": "stages.2.0.pwconv1.weight",
+          "target": "stages.2.0.pw1.weight"
+        },
+        {
+          "source": "stages.2.0.pwconv1.bias",
+          "target": "stages.2.0.pw1.bias"
+        },
+        {
+          "source": "stages.2.0.pwconv2.weight",
+          "target": "stages.2.0.pw2.weight"
+        },
+        {
+          "source": "stages.2.0.pwconv2.bias",
+          "target": "stages.2.0.pw2.bias"
+        },
+        {
+          "source": "stages.2.1.gamma",
+          "target": "stages.2.1.gamma"
+        },
+        {
+          "source": "stages.2.1.dwconv.weight",
+          "target": "stages.2.1.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.1.dwconv.bias",
+          "target": "stages.2.1.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.1.norm.weight",
+          "target": "stages.2.1.norm.weight"
+        },
+        {
+          "source": "stages.2.1.norm.bias",
+          "target": "stages.2.1.norm.bias"
+        },
+        {
+          "source": "stages.2.1.pwconv1.weight",
+          "target": "stages.2.1.pw1.weight"
+        },
+        {
+          "source": "stages.2.1.pwconv1.bias",
+          "target": "stages.2.1.pw1.bias"
+        },
+        {
+          "source": "stages.2.1.pwconv2.weight",
+          "target": "stages.2.1.pw2.weight"
+        },
+        {
+          "source": "stages.2.1.pwconv2.bias",
+          "target": "stages.2.1.pw2.bias"
+        },
+        {
+          "source": "stages.2.2.gamma",
+          "target": "stages.2.2.gamma"
+        },
+        {
+          "source": "stages.2.2.dwconv.weight",
+          "target": "stages.2.2.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.2.dwconv.bias",
+          "target": "stages.2.2.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.2.norm.weight",
+          "target": "stages.2.2.norm.weight"
+        },
+        {
+          "source": "stages.2.2.norm.bias",
+          "target": "stages.2.2.norm.bias"
+        },
+        {
+          "source": "stages.2.2.pwconv1.weight",
+          "target": "stages.2.2.pw1.weight"
+        },
+        {
+          "source": "stages.2.2.pwconv1.bias",
+          "target": "stages.2.2.pw1.bias"
+        },
+        {
+          "source": "stages.2.2.pwconv2.weight",
+          "target": "stages.2.2.pw2.weight"
+        },
+        {
+          "source": "stages.2.2.pwconv2.bias",
+          "target": "stages.2.2.pw2.bias"
+        },
+        {
+          "source": "stages.2.3.gamma",
+          "target": "stages.2.3.gamma"
+        },
+        {
+          "source": "stages.2.3.dwconv.weight",
+          "target": "stages.2.3.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.3.dwconv.bias",
+          "target": "stages.2.3.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.3.norm.weight",
+          "target": "stages.2.3.norm.weight"
+        },
+        {
+          "source": "stages.2.3.norm.bias",
+          "target": "stages.2.3.norm.bias"
+        },
+        {
+          "source": "stages.2.3.pwconv1.weight",
+          "target": "stages.2.3.pw1.weight"
+        },
+        {
+          "source": "stages.2.3.pwconv1.bias",
+          "target": "stages.2.3.pw1.bias"
+        },
+        {
+          "source": "stages.2.3.pwconv2.weight",
+          "target": "stages.2.3.pw2.weight"
+        },
+        {
+          "source": "stages.2.3.pwconv2.bias",
+          "target": "stages.2.3.pw2.bias"
+        },
+        {
+          "source": "stages.2.4.gamma",
+          "target": "stages.2.4.gamma"
+        },
+        {
+          "source": "stages.2.4.dwconv.weight",
+          "target": "stages.2.4.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.4.dwconv.bias",
+          "target": "stages.2.4.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.4.norm.weight",
+          "target": "stages.2.4.norm.weight"
+        },
+        {
+          "source": "stages.2.4.norm.bias",
+          "target": "stages.2.4.norm.bias"
+        },
+        {
+          "source": "stages.2.4.pwconv1.weight",
+          "target": "stages.2.4.pw1.weight"
+        },
+        {
+          "source": "stages.2.4.pwconv1.bias",
+          "target": "stages.2.4.pw1.bias"
+        },
+        {
+          "source": "stages.2.4.pwconv2.weight",
+          "target": "stages.2.4.pw2.weight"
+        },
+        {
+          "source": "stages.2.4.pwconv2.bias",
+          "target": "stages.2.4.pw2.bias"
+        },
+        {
+          "source": "stages.2.5.gamma",
+          "target": "stages.2.5.gamma"
+        },
+        {
+          "source": "stages.2.5.dwconv.weight",
+          "target": "stages.2.5.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.2.5.dwconv.bias",
+          "target": "stages.2.5.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.2.5.norm.weight",
+          "target": "stages.2.5.norm.weight"
+        },
+        {
+          "source": "stages.2.5.norm.bias",
+          "target": "stages.2.5.norm.bias"
+        },
+        {
+          "source": "stages.2.5.pwconv1.weight",
+          "target": "stages.2.5.pw1.weight"
+        },
+        {
+          "source": "stages.2.5.pwconv1.bias",
+          "target": "stages.2.5.pw1.bias"
+        },
+        {
+          "source": "stages.2.5.pwconv2.weight",
+          "target": "stages.2.5.pw2.weight"
+        },
+        {
+          "source": "stages.2.5.pwconv2.bias",
+          "target": "stages.2.5.pw2.bias"
+        },
+        {
+          "source": "stages.3.0.gamma",
+          "target": "stages.3.0.gamma"
+        },
+        {
+          "source": "stages.3.0.dwconv.weight",
+          "target": "stages.3.0.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.3.0.dwconv.bias",
+          "target": "stages.3.0.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.3.0.norm.weight",
+          "target": "stages.3.0.norm.weight"
+        },
+        {
+          "source": "stages.3.0.norm.bias",
+          "target": "stages.3.0.norm.bias"
+        },
+        {
+          "source": "stages.3.0.pwconv1.weight",
+          "target": "stages.3.0.pw1.weight"
+        },
+        {
+          "source": "stages.3.0.pwconv1.bias",
+          "target": "stages.3.0.pw1.bias"
+        },
+        {
+          "source": "stages.3.0.pwconv2.weight",
+          "target": "stages.3.0.pw2.weight"
+        },
+        {
+          "source": "stages.3.0.pwconv2.bias",
+          "target": "stages.3.0.pw2.bias"
+        },
+        {
+          "source": "stages.3.1.gamma",
+          "target": "stages.3.1.gamma"
+        },
+        {
+          "source": "stages.3.1.dwconv.weight",
+          "target": "stages.3.1.dwconv.conv.weight"
+        },
+        {
+          "source": "stages.3.1.dwconv.bias",
+          "target": "stages.3.1.dwconv.conv.bias"
+        },
+        {
+          "source": "stages.3.1.norm.weight",
+          "target": "stages.3.1.norm.weight"
+        },
+        {
+          "source": "stages.3.1.norm.bias",
+          "target": "stages.3.1.norm.bias"
+        },
+        {
+          "source": "stages.3.1.pwconv1.weight",
+          "target": "stages.3.1.pw1.weight"
+        },
+        {
+          "source": "stages.3.1.pwconv1.bias",
+          "target": "stages.3.1.pw1.bias"
+        },
+        {
+          "source": "stages.3.1.pwconv2.weight",
+          "target": "stages.3.1.pw2.weight"
+        },
+        {
+          "source": "stages.3.1.pwconv2.bias",
+          "target": "stages.3.1.pw2.bias"
+        },
+        {
+          "source": "norm.weight",
+          "target": "final_norm.weight"
+        },
+        {
+          "source": "norm.bias",
+          "target": "final_norm.bias"
+        },
+        {
+          "source": "head.weight",
+          "target": "head.weight"
+        },
+        {
+          "source": "head.bias",
+          "target": "head.bias"
+        }
+      ],
+      "excluded_source_keys": [
+        "downsample_layers.0.1.bias",
+        "downsample_layers.0.1.weight",
+        "downsample_layers.1.0.bias",
+        "downsample_layers.1.0.weight",
+        "downsample_layers.2.0.bias",
+        "downsample_layers.2.0.weight",
+        "downsample_layers.3.0.bias",
+        "downsample_layers.3.0.weight"
+      ],
+      "initialized_delay_keys": [
+        "downsample_layers.1.0.D_conv",
+        "downsample_layers.2.0.D_conv",
+        "downsample_layers.3.0.D_conv",
+        "stages.0.0.D_mid",
+        "stages.0.0.D_out",
+        "stages.0.0.dwconv.D_conv",
+        "stages.0.1.D_mid",
+        "stages.0.1.D_out",
+        "stages.0.1.dwconv.D_conv",
+        "stages.1.0.D_mid",
+        "stages.1.0.D_out",
+        "stages.1.0.dwconv.D_conv",
+        "stages.1.1.D_mid",
+        "stages.1.1.D_out",
+        "stages.1.1.dwconv.D_conv",
+        "stages.2.0.D_mid",
+        "stages.2.0.D_out",
+        "stages.2.0.dwconv.D_conv",
+        "stages.2.1.D_mid",
+        "stages.2.1.D_out",
+        "stages.2.1.dwconv.D_conv",
+        "stages.2.2.D_mid",
+        "stages.2.2.D_out",
+        "stages.2.2.dwconv.D_conv",
+        "stages.2.3.D_mid",
+        "stages.2.3.D_out",
+        "stages.2.3.dwconv.D_conv",
+        "stages.2.4.D_mid",
+        "stages.2.4.D_out",
+        "stages.2.4.dwconv.D_conv",
+        "stages.2.5.D_mid",
+        "stages.2.5.D_out",
+        "stages.2.5.dwconv.D_conv",
+        "stages.3.0.D_mid",
+        "stages.3.0.D_out",
+        "stages.3.0.dwconv.D_conv",
+        "stages.3.1.D_mid",
+        "stages.3.1.D_out",
+        "stages.3.1.dwconv.D_conv"
+      ],
+      "missing_keys": [],
+      "unexpected_keys": [],
+      "source_best_epoch": 295,
+      "source_best_validation_accuracy": 86.0,
+      "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar100\\interpolated_imagenet_pretrain\\seed_42\\best_checkpoint.pth"
+    },
+    "constrained_finetune_initialization": null
+  },
+  "results": {
+    "best_epoch": 228,
+    "best_validation_accuracy": 69.74,
+    "final_train_accuracy": 63.78433641409307,
+    "final_validation_accuracy": 69.46,
+    "test_accuracy": 68.79,
+    "test_loss": 1.8079791381835937,
+    "training_time_seconds": 10676.094804048538,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v4\\cifar100\\ann_to_fully_ttfs\\seed_42\\best_checkpoint.pth"
+  },
+  "optional_evaluation": {
+    "activation_sparsity": null,
+    "dense_macs_per_sample": null,
+    "theoretical_synops_per_sample": null
+  }
+}

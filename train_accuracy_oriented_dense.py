@@ -398,6 +398,14 @@ class ModelEMA:
                 value.copy_(source[key])
 
 
+def optimizer_state_to_device(optimizer, device):
+    """Move tensors restored from a CPU checkpoint onto the model device."""
+    for state in optimizer.state.values():
+        for key, value in state.items():
+            if torch.is_tensor(value):
+                state[key] = value.to(device=device, non_blocking=True)
+
+
 def mixed_batch(images, labels, args):
     mixup_alpha = float(args.mixup_alpha)
     cutmix_alpha = float(args.cutmix_alpha)
@@ -530,6 +538,8 @@ def main():
         stale_epochs = int(checkpoint["stale_epochs"])
         schedule_state.update(checkpoint.get("augmentation_schedule_state", {}))
     model.to(device)
+    if args.resume:
+        optimizer_state_to_device(optimizer, device)
     ema.module.to(device)
     initial_phase, initial_augmentation = scheduled_augmentation(
         args, start_epoch, schedule_state

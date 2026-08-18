@@ -219,15 +219,23 @@ function Run-Experiment {
         Write-Host "  Dataset: $Dataset"
         Write-Host "  Seed:    $Seed"
     }
-    elseif (Test-Path -LiteralPath $lastCheckpoint -PathType Leaf) {
+    elseif (
+        (Test-Path -LiteralPath $bestCheckpoint -PathType Leaf) -or
+        (Test-Path -LiteralPath $lastCheckpoint -PathType Leaf)
+    ) {
 
         Write-Host "Resuming training:"
         Write-Host "  Dataset: $Dataset"
         Write-Host "  Seed:    $Seed"
 
-        $arguments += @(
-            "--resume", $lastCheckpoint
-        )
+        $resumeCheckpoint = if (Test-Path -LiteralPath $bestCheckpoint -PathType Leaf) {
+            $bestCheckpoint
+        }
+        else {
+            $lastCheckpoint
+        }
+        Write-Host "  Checkpoint: $resumeCheckpoint"
+        $arguments += @("--resume", $resumeCheckpoint)
 
         & $python @arguments
 
@@ -329,14 +337,14 @@ function Run-Experiment {
 # Existing CIFAR-10 seed 42 is NOT rerun here.
 # Run the two additional CIFAR-10 seeds first.
 
-Run-Experiment -Dataset "cifar10" -Seed 6543
-Run-Experiment -Dataset "cifar10" -Seed 7777
+# Run-Experiment -Dataset "cifar10" -Seed 6543
+# Run-Experiment -Dataset "cifar10" -Seed 7777
 
 
 # Then run CIFAR-100 using all three seeds.
 
-Run-Experiment -Dataset "cifar100" -Seed 42
-Run-Experiment -Dataset "cifar100" -Seed 6543
+# Run-Experiment -Dataset "cifar100" -Seed 42
+# Run-Experiment -Dataset "cifar100" -Seed 6543
 Run-Experiment -Dataset "cifar100" -Seed 7777
 
 

@@ -9,6 +9,7 @@ from evaluate_accuracy_oriented_dense import integrity, make_views
 from models.accuracy_convnext import AccuracyConvNeXt, DenseConvNeXtBlock, architecture_metadata
 from train_accuracy_oriented_dense import (
     initialize_refinement,
+    optimizer_state_to_device,
     resize_conv_kernel,
     scheduled_augmentation,
     transfer_imagenet_weights,
@@ -17,6 +18,20 @@ from train_accuracy_oriented_dense import (
 
 
 class AccuracyOrientedDenseTests(unittest.TestCase):
+    def test_restored_optimizer_state_moves_to_requested_device(self):
+        parameter = nn.Parameter(torch.tensor([1.0]))
+        optimizer = torch.optim.AdamW([parameter], lr=1e-3)
+        parameter.grad = torch.ones_like(parameter)
+        optimizer.step()
+
+        optimizer_state_to_device(optimizer, torch.device("cpu"))
+
+        self.assertTrue(all(
+            not torch.is_tensor(value) or value.device.type == "cpu"
+            for state in optimizer.state.values()
+            for value in state.values()
+        ))
+
     def test_model_is_dense_additive_and_forward_backward_is_finite(self):
         for classes in (10, 100):
             model = AccuracyConvNeXt(classes, depths=(1, 1, 1, 1), dims=(8, 16, 32, 64))

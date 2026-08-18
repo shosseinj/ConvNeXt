@@ -4,6 +4,11 @@ from unittest.mock import patch
 
 import torch
 
+from models.accuracy_convnext import (
+    AccuracyConvNeXt,
+    architecture_metadata as ann_architecture_metadata,
+)
+
 from train_continuous_ttfs_cifar10_32x32_stem1 import (
     architecture_metadata,
     apply_pretrained_lineage,
@@ -11,6 +16,7 @@ from train_continuous_ttfs_cifar10_32x32_stem1 import (
     apply_warmup_learning_rates,
     build_optimizer,
     convert_dense_checkpoint_to_ttfs,
+    convert_ann_checkpoint_to_ttfs,
     make_model,
     validate_pretrained_architecture,
 )
@@ -40,6 +46,7 @@ def model_args(dwconv_mode="dense", downsample_mode="dense"):
         init_delay=0.0,
         stage_delays="0.05,0.02,0.01,0.01",
         input_resolution=32,
+        split_seed=2026,
     )
 
 
@@ -53,6 +60,66 @@ def checkpoint_from_model(model, args, ema=None):
 
 
 class DenseToTTFSConversionTests(unittest.TestCase):
+    def test_converts_ann_ema_into_all_39_fully_ttfs_points(self):
+        target_args = model_args("ttfs", "ttfs")
+        target_args.dataset = "cifar100"
+        target_args.num_classes = 100
+        target_args.dims = (8, 16, 32, 64)
+        target_args.depths = (2, 2, 6, 2)
+        ann = AccuracyConvNeXt(
+            100, depths=target_args.depths, dims=target_args.dims, kernel_size=3
+        )
+        ema = {
+            key: tensor.detach().clone() for key, tensor in ann.state_dict().items()
+        }
+        ema["head.bias"].fill_(2.5)
+        checkpoint = {
+            "model": ann.state_dict(),
+            "ema": ema,
+            "architecture": ann_architecture_metadata(ann),
+            "args": {"dataset": "cifar100", "split_seed": 2026},
+            "best_epoch": 12,
+            "best_validation_accuracy": 86.0,
+        }
+        target = make_model(target_args)
+
+        diagnostics = convert_ann_checkpoint_to_ttfs(
+            target, checkpoint, target_args
+        )
+
+        self.assertEqual(diagnostics["source_state"], "ema")
+        self.assertEqual(len(diagnostics["initialized_delay_keys"]), 39)
+        self.assertEqual(len(diagnostics["excluded_source_keys"]), 8)
+        self.assertEqual(diagnostics["missing_keys"], [])
+        self.assertEqual(diagnostics["unexpected_keys"], [])
+        torch.testing.assert_close(
+            target.state_dict()["stages.0.0.pw1.weight"],
+            ema["stages.0.0.pwconv1.weight"],
+        )
+        torch.testing.assert_close(
+            target.state_dict()["downsample_layers.1.0.conv.weight"],
+            ema["downsample_layers.1.1.weight"],
+        )
+        torch.testing.assert_close(target.head.bias, torch.full_like(target.head.bias, 2.5))
+
+    def test_ann_conversion_rejects_wrong_split(self):
+        target_args = model_args("ttfs", "ttfs")
+        target_args.dataset = "cifar100"
+        target_args.num_classes = 100
+        target_args.depths = (2, 2, 6, 2)
+        ann = AccuracyConvNeXt(
+            100, depths=target_args.depths, dims=target_args.dims, kernel_size=3
+        )
+        checkpoint = {
+            "ema": ann.state_dict(),
+            "architecture": ann_architecture_metadata(ann),
+            "args": {"dataset": "cifar100", "split_seed": 42},
+        }
+        with self.assertRaisesRegex(ValueError, "split_seed"):
+            convert_ann_checkpoint_to_ttfs(
+                make_model(target_args), checkpoint, target_args
+            )
+
     def test_residual_ablation_can_change_min_source_to_mean(self):
         dense_args = model_args()
         target_args = model_args("ttfs", "ttfs")

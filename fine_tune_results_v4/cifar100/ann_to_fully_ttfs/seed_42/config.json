@@ -1,0 +1,980 @@
+{
+  "data_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\..\\cifar_data",
+  "output_dir": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v4\\cifar100\\ann_to_fully_ttfs\\seed_42",
+  "resume": "",
+  "pretrained_checkpoint": "",
+  "ann_pretrained_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar100\\interpolated_imagenet_pretrain\\seed_42\\best_checkpoint.pth",
+  "constrained_finetune_checkpoint": "",
+  "experiment_name": "cifar100_ann_to_fully_ttfs_seed42",
+  "experiment_notes": "Fully-TTFS fine-tuning from the CIFAR-100 seed-42 accuracy-oriented ANN EMA checkpoint",
+  "dataset": "cifar100",
+  "residual_operator": "min",
+  "allow_pretrained_residual_operator_change": false,
+  "pw1_mode": "ttfs",
+  "pw2_mode": "ttfs",
+  "ttfs_norm_mode": "score_layernorm",
+  "final_score_norm": true,
+  "download": false,
+  "epochs": 250,
+  "batch_size": 128,
+  "num_workers": 4,
+  "seed": 42,
+  "split_seed": 2026,
+  "lr": 0.0001,
+  "conv_delay_lr": null,
+  "min_lr": 1e-06,
+  "warmup_epochs": 5,
+  "lr_scheduler_patience": 3,
+  "lr_scheduler_factor": 0.85,
+  "early_stopping_min_delta": 0.02,
+  "ema": false,
+  "ema_decay": 0.9998,
+  "weight_decay": 0.05,
+  "label_smoothing": 0.1,
+  "head_dropout": 0.1,
+  "spike_dropout": 0.0,
+  "mixup_alpha": 0.2,
+  "cutmix_alpha": 1.0,
+  "randaugment": true,
+  "randaugment_num_ops": 2,
+  "randaugment_magnitude": 9,
+  "random_erasing": 0.1,
+  "early_stopping_patience": 30,
+  "dims": [
+    96,
+    192,
+    384,
+    768
+  ],
+  "depths": [
+    2,
+    2,
+    6,
+    2
+  ],
+  "dw_kernel_size": 3,
+  "dwconv_mode": "ttfs",
+  "downsample_mode": "ttfs",
+  "grad_clip": 5.0,
+  "drop_path": 0.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "force_positive_weights": false,
+  "force_positive_pointwise_weights": false,
+  "init_delay": 0.0,
+  "stage_delays": "0.05,0.02,0.01,0.01",
+  "amp": true,
+  "device": "cuda",
+  "val_size": 5000,
+  "print_freq": 50,
+  "dataset_display_name": "CIFAR-100",
+  "num_classes": 100,
+  "input_resolution": [
+    32,
+    32
+  ],
+  "crop_padding": 4,
+  "pretrained_initialization": {
+    "initialization_type": "fully_dense_ann_to_fully_ttfs",
+    "source_state": "ema",
+    "source_parameter_keys": 128,
+    "transferred_parameter_keys": 120,
+    "parameter_mapping": [
+      {
+        "source": "downsample_layers.0.0.weight",
+        "target": "downsample_layers.0.0.weight"
+      },
+      {
+        "source": "downsample_layers.0.0.bias",
+        "target": "downsample_layers.0.0.bias"
+      },
+      {
+        "source": "downsample_layers.1.1.weight",
+        "target": "downsample_layers.1.0.conv.weight"
+      },
+      {
+        "source": "downsample_layers.1.1.bias",
+        "target": "downsample_layers.1.0.conv.bias"
+      },
+      {
+        "source": "downsample_layers.2.1.weight",
+        "target": "downsample_layers.2.0.conv.weight"
+      },
+      {
+        "source": "downsample_layers.2.1.bias",
+        "target": "downsample_layers.2.0.conv.bias"
+      },
+      {
+        "source": "downsample_layers.3.1.weight",
+        "target": "downsample_layers.3.0.conv.weight"
+      },
+      {
+        "source": "downsample_layers.3.1.bias",
+        "target": "downsample_layers.3.0.conv.bias"
+      },
+      {
+        "source": "stages.0.0.gamma",
+        "target": "stages.0.0.gamma"
+      },
+      {
+        "source": "stages.0.0.dwconv.weight",
+        "target": "stages.0.0.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.0.0.dwconv.bias",
+        "target": "stages.0.0.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.0.0.norm.weight",
+        "target": "stages.0.0.norm.weight"
+      },
+      {
+        "source": "stages.0.0.norm.bias",
+        "target": "stages.0.0.norm.bias"
+      },
+      {
+        "source": "stages.0.0.pwconv1.weight",
+        "target": "stages.0.0.pw1.weight"
+      },
+      {
+        "source": "stages.0.0.pwconv1.bias",
+        "target": "stages.0.0.pw1.bias"
+      },
+      {
+        "source": "stages.0.0.pwconv2.weight",
+        "target": "stages.0.0.pw2.weight"
+      },
+      {
+        "source": "stages.0.0.pwconv2.bias",
+        "target": "stages.0.0.pw2.bias"
+      },
+      {
+        "source": "stages.0.1.gamma",
+        "target": "stages.0.1.gamma"
+      },
+      {
+        "source": "stages.0.1.dwconv.weight",
+        "target": "stages.0.1.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.0.1.dwconv.bias",
+        "target": "stages.0.1.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.0.1.norm.weight",
+        "target": "stages.0.1.norm.weight"
+      },
+      {
+        "source": "stages.0.1.norm.bias",
+        "target": "stages.0.1.norm.bias"
+      },
+      {
+        "source": "stages.0.1.pwconv1.weight",
+        "target": "stages.0.1.pw1.weight"
+      },
+      {
+        "source": "stages.0.1.pwconv1.bias",
+        "target": "stages.0.1.pw1.bias"
+      },
+      {
+        "source": "stages.0.1.pwconv2.weight",
+        "target": "stages.0.1.pw2.weight"
+      },
+      {
+        "source": "stages.0.1.pwconv2.bias",
+        "target": "stages.0.1.pw2.bias"
+      },
+      {
+        "source": "stages.1.0.gamma",
+        "target": "stages.1.0.gamma"
+      },
+      {
+        "source": "stages.1.0.dwconv.weight",
+        "target": "stages.1.0.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.1.0.dwconv.bias",
+        "target": "stages.1.0.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.1.0.norm.weight",
+        "target": "stages.1.0.norm.weight"
+      },
+      {
+        "source": "stages.1.0.norm.bias",
+        "target": "stages.1.0.norm.bias"
+      },
+      {
+        "source": "stages.1.0.pwconv1.weight",
+        "target": "stages.1.0.pw1.weight"
+      },
+      {
+        "source": "stages.1.0.pwconv1.bias",
+        "target": "stages.1.0.pw1.bias"
+      },
+      {
+        "source": "stages.1.0.pwconv2.weight",
+        "target": "stages.1.0.pw2.weight"
+      },
+      {
+        "source": "stages.1.0.pwconv2.bias",
+        "target": "stages.1.0.pw2.bias"
+      },
+      {
+        "source": "stages.1.1.gamma",
+        "target": "stages.1.1.gamma"
+      },
+      {
+        "source": "stages.1.1.dwconv.weight",
+        "target": "stages.1.1.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.1.1.dwconv.bias",
+        "target": "stages.1.1.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.1.1.norm.weight",
+        "target": "stages.1.1.norm.weight"
+      },
+      {
+        "source": "stages.1.1.norm.bias",
+        "target": "stages.1.1.norm.bias"
+      },
+      {
+        "source": "stages.1.1.pwconv1.weight",
+        "target": "stages.1.1.pw1.weight"
+      },
+      {
+        "source": "stages.1.1.pwconv1.bias",
+        "target": "stages.1.1.pw1.bias"
+      },
+      {
+        "source": "stages.1.1.pwconv2.weight",
+        "target": "stages.1.1.pw2.weight"
+      },
+      {
+        "source": "stages.1.1.pwconv2.bias",
+        "target": "stages.1.1.pw2.bias"
+      },
+      {
+        "source": "stages.2.0.gamma",
+        "target": "stages.2.0.gamma"
+      },
+      {
+        "source": "stages.2.0.dwconv.weight",
+        "target": "stages.2.0.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.0.dwconv.bias",
+        "target": "stages.2.0.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.0.norm.weight",
+        "target": "stages.2.0.norm.weight"
+      },
+      {
+        "source": "stages.2.0.norm.bias",
+        "target": "stages.2.0.norm.bias"
+      },
+      {
+        "source": "stages.2.0.pwconv1.weight",
+        "target": "stages.2.0.pw1.weight"
+      },
+      {
+        "source": "stages.2.0.pwconv1.bias",
+        "target": "stages.2.0.pw1.bias"
+      },
+      {
+        "source": "stages.2.0.pwconv2.weight",
+        "target": "stages.2.0.pw2.weight"
+      },
+      {
+        "source": "stages.2.0.pwconv2.bias",
+        "target": "stages.2.0.pw2.bias"
+      },
+      {
+        "source": "stages.2.1.gamma",
+        "target": "stages.2.1.gamma"
+      },
+      {
+        "source": "stages.2.1.dwconv.weight",
+        "target": "stages.2.1.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.1.dwconv.bias",
+        "target": "stages.2.1.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.1.norm.weight",
+        "target": "stages.2.1.norm.weight"
+      },
+      {
+        "source": "stages.2.1.norm.bias",
+        "target": "stages.2.1.norm.bias"
+      },
+      {
+        "source": "stages.2.1.pwconv1.weight",
+        "target": "stages.2.1.pw1.weight"
+      },
+      {
+        "source": "stages.2.1.pwconv1.bias",
+        "target": "stages.2.1.pw1.bias"
+      },
+      {
+        "source": "stages.2.1.pwconv2.weight",
+        "target": "stages.2.1.pw2.weight"
+      },
+      {
+        "source": "stages.2.1.pwconv2.bias",
+        "target": "stages.2.1.pw2.bias"
+      },
+      {
+        "source": "stages.2.2.gamma",
+        "target": "stages.2.2.gamma"
+      },
+      {
+        "source": "stages.2.2.dwconv.weight",
+        "target": "stages.2.2.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.2.dwconv.bias",
+        "target": "stages.2.2.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.2.norm.weight",
+        "target": "stages.2.2.norm.weight"
+      },
+      {
+        "source": "stages.2.2.norm.bias",
+        "target": "stages.2.2.norm.bias"
+      },
+      {
+        "source": "stages.2.2.pwconv1.weight",
+        "target": "stages.2.2.pw1.weight"
+      },
+      {
+        "source": "stages.2.2.pwconv1.bias",
+        "target": "stages.2.2.pw1.bias"
+      },
+      {
+        "source": "stages.2.2.pwconv2.weight",
+        "target": "stages.2.2.pw2.weight"
+      },
+      {
+        "source": "stages.2.2.pwconv2.bias",
+        "target": "stages.2.2.pw2.bias"
+      },
+      {
+        "source": "stages.2.3.gamma",
+        "target": "stages.2.3.gamma"
+      },
+      {
+        "source": "stages.2.3.dwconv.weight",
+        "target": "stages.2.3.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.3.dwconv.bias",
+        "target": "stages.2.3.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.3.norm.weight",
+        "target": "stages.2.3.norm.weight"
+      },
+      {
+        "source": "stages.2.3.norm.bias",
+        "target": "stages.2.3.norm.bias"
+      },
+      {
+        "source": "stages.2.3.pwconv1.weight",
+        "target": "stages.2.3.pw1.weight"
+      },
+      {
+        "source": "stages.2.3.pwconv1.bias",
+        "target": "stages.2.3.pw1.bias"
+      },
+      {
+        "source": "stages.2.3.pwconv2.weight",
+        "target": "stages.2.3.pw2.weight"
+      },
+      {
+        "source": "stages.2.3.pwconv2.bias",
+        "target": "stages.2.3.pw2.bias"
+      },
+      {
+        "source": "stages.2.4.gamma",
+        "target": "stages.2.4.gamma"
+      },
+      {
+        "source": "stages.2.4.dwconv.weight",
+        "target": "stages.2.4.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.4.dwconv.bias",
+        "target": "stages.2.4.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.4.norm.weight",
+        "target": "stages.2.4.norm.weight"
+      },
+      {
+        "source": "stages.2.4.norm.bias",
+        "target": "stages.2.4.norm.bias"
+      },
+      {
+        "source": "stages.2.4.pwconv1.weight",
+        "target": "stages.2.4.pw1.weight"
+      },
+      {
+        "source": "stages.2.4.pwconv1.bias",
+        "target": "stages.2.4.pw1.bias"
+      },
+      {
+        "source": "stages.2.4.pwconv2.weight",
+        "target": "stages.2.4.pw2.weight"
+      },
+      {
+        "source": "stages.2.4.pwconv2.bias",
+        "target": "stages.2.4.pw2.bias"
+      },
+      {
+        "source": "stages.2.5.gamma",
+        "target": "stages.2.5.gamma"
+      },
+      {
+        "source": "stages.2.5.dwconv.weight",
+        "target": "stages.2.5.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.2.5.dwconv.bias",
+        "target": "stages.2.5.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.2.5.norm.weight",
+        "target": "stages.2.5.norm.weight"
+      },
+      {
+        "source": "stages.2.5.norm.bias",
+        "target": "stages.2.5.norm.bias"
+      },
+      {
+        "source": "stages.2.5.pwconv1.weight",
+        "target": "stages.2.5.pw1.weight"
+      },
+      {
+        "source": "stages.2.5.pwconv1.bias",
+        "target": "stages.2.5.pw1.bias"
+      },
+      {
+        "source": "stages.2.5.pwconv2.weight",
+        "target": "stages.2.5.pw2.weight"
+      },
+      {
+        "source": "stages.2.5.pwconv2.bias",
+        "target": "stages.2.5.pw2.bias"
+      },
+      {
+        "source": "stages.3.0.gamma",
+        "target": "stages.3.0.gamma"
+      },
+      {
+        "source": "stages.3.0.dwconv.weight",
+        "target": "stages.3.0.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.3.0.dwconv.bias",
+        "target": "stages.3.0.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.3.0.norm.weight",
+        "target": "stages.3.0.norm.weight"
+      },
+      {
+        "source": "stages.3.0.norm.bias",
+        "target": "stages.3.0.norm.bias"
+      },
+      {
+        "source": "stages.3.0.pwconv1.weight",
+        "target": "stages.3.0.pw1.weight"
+      },
+      {
+        "source": "stages.3.0.pwconv1.bias",
+        "target": "stages.3.0.pw1.bias"
+      },
+      {
+        "source": "stages.3.0.pwconv2.weight",
+        "target": "stages.3.0.pw2.weight"
+      },
+      {
+        "source": "stages.3.0.pwconv2.bias",
+        "target": "stages.3.0.pw2.bias"
+      },
+      {
+        "source": "stages.3.1.gamma",
+        "target": "stages.3.1.gamma"
+      },
+      {
+        "source": "stages.3.1.dwconv.weight",
+        "target": "stages.3.1.dwconv.conv.weight"
+      },
+      {
+        "source": "stages.3.1.dwconv.bias",
+        "target": "stages.3.1.dwconv.conv.bias"
+      },
+      {
+        "source": "stages.3.1.norm.weight",
+        "target": "stages.3.1.norm.weight"
+      },
+      {
+        "source": "stages.3.1.norm.bias",
+        "target": "stages.3.1.norm.bias"
+      },
+      {
+        "source": "stages.3.1.pwconv1.weight",
+        "target": "stages.3.1.pw1.weight"
+      },
+      {
+        "source": "stages.3.1.pwconv1.bias",
+        "target": "stages.3.1.pw1.bias"
+      },
+      {
+        "source": "stages.3.1.pwconv2.weight",
+        "target": "stages.3.1.pw2.weight"
+      },
+      {
+        "source": "stages.3.1.pwconv2.bias",
+        "target": "stages.3.1.pw2.bias"
+      },
+      {
+        "source": "norm.weight",
+        "target": "final_norm.weight"
+      },
+      {
+        "source": "norm.bias",
+        "target": "final_norm.bias"
+      },
+      {
+        "source": "head.weight",
+        "target": "head.weight"
+      },
+      {
+        "source": "head.bias",
+        "target": "head.bias"
+      }
+    ],
+    "excluded_source_keys": [
+      "downsample_layers.0.1.bias",
+      "downsample_layers.0.1.weight",
+      "downsample_layers.1.0.bias",
+      "downsample_layers.1.0.weight",
+      "downsample_layers.2.0.bias",
+      "downsample_layers.2.0.weight",
+      "downsample_layers.3.0.bias",
+      "downsample_layers.3.0.weight"
+    ],
+    "initialized_delay_keys": [
+      "downsample_layers.1.0.D_conv",
+      "downsample_layers.2.0.D_conv",
+      "downsample_layers.3.0.D_conv",
+      "stages.0.0.D_mid",
+      "stages.0.0.D_out",
+      "stages.0.0.dwconv.D_conv",
+      "stages.0.1.D_mid",
+      "stages.0.1.D_out",
+      "stages.0.1.dwconv.D_conv",
+      "stages.1.0.D_mid",
+      "stages.1.0.D_out",
+      "stages.1.0.dwconv.D_conv",
+      "stages.1.1.D_mid",
+      "stages.1.1.D_out",
+      "stages.1.1.dwconv.D_conv",
+      "stages.2.0.D_mid",
+      "stages.2.0.D_out",
+      "stages.2.0.dwconv.D_conv",
+      "stages.2.1.D_mid",
+      "stages.2.1.D_out",
+      "stages.2.1.dwconv.D_conv",
+      "stages.2.2.D_mid",
+      "stages.2.2.D_out",
+      "stages.2.2.dwconv.D_conv",
+      "stages.2.3.D_mid",
+      "stages.2.3.D_out",
+      "stages.2.3.dwconv.D_conv",
+      "stages.2.4.D_mid",
+      "stages.2.4.D_out",
+      "stages.2.4.dwconv.D_conv",
+      "stages.2.5.D_mid",
+      "stages.2.5.D_out",
+      "stages.2.5.dwconv.D_conv",
+      "stages.3.0.D_mid",
+      "stages.3.0.D_out",
+      "stages.3.0.dwconv.D_conv",
+      "stages.3.1.D_mid",
+      "stages.3.1.D_out",
+      "stages.3.1.dwconv.D_conv"
+    ],
+    "missing_keys": [],
+    "unexpected_keys": [],
+    "source_best_epoch": 295,
+    "source_best_validation_accuracy": 86.0,
+    "source_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\accuracy_oriented_results_v7\\cifar100\\interpolated_imagenet_pretrain\\seed_42\\best_checkpoint.pth"
+  },
+  "dataset_configuration": {
+    "name": "CIFAR-100",
+    "canonical_name": "cifar100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ]
+  },
+  "stem": {
+    "in_channels": 3,
+    "kernel_size": 3,
+    "stride": 1,
+    "padding": 1,
+    "out_channels": 96
+  },
+  "spatial_schedule": [
+    32,
+    32,
+    16,
+    8,
+    4
+  ],
+  "depthwise_kernel_size": 3,
+  "depthwise_mode": "ttfs",
+  "downsampling": {
+    "kernel_size": 3,
+    "stride": 2,
+    "padding": 1,
+    "mode": "ttfs"
+  },
+  "actual_stage_delays": [
+    {
+      "stage": 0,
+      "mid": 0.05000000447034836,
+      "out": 0.05000000447034836
+    },
+    {
+      "stage": 1,
+      "mid": 0.019999999552965164,
+      "out": 0.019999999552965164
+    },
+    {
+      "stage": 2,
+      "mid": 0.009999999776482582,
+      "out": 0.009999999776482582
+    },
+    {
+      "stage": 3,
+      "mid": 0.009999999776482582,
+      "out": 0.009999999776482582
+    }
+  ],
+  "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+  "delay_gradient_norms_test_backward": [
+    {
+      "stage": 0,
+      "D_mid": 0.013903074877321548,
+      "D_out": 0.010277993005583587
+    },
+    {
+      "stage": 1,
+      "D_mid": 0.00246492582977878,
+      "D_out": 0.0012115539377519676
+    },
+    {
+      "stage": 2,
+      "D_mid": 0.00041846044399158764,
+      "D_out": 0.00016740859406365308
+    },
+    {
+      "stage": 3,
+      "D_mid": 1.4860506123259443e-05,
+      "D_out": 2.2015118593026782e-05
+    }
+  ],
+  "ttfs_normalization_mode": "score_layernorm",
+  "ttfs_normalization_smoke_test": {
+    "logits_shape": [
+      2,
+      100
+    ],
+    "logits_finite": true,
+    "delay_gradient_norms": [
+      {
+        "stage": 0,
+        "D_mid": 0.013903074877321548,
+        "D_out": 0.010277993005583587
+      },
+      {
+        "stage": 1,
+        "D_mid": 0.00246492582977878,
+        "D_out": 0.0012115539377519676
+      },
+      {
+        "stage": 2,
+        "D_mid": 0.00041846044399158764,
+        "D_out": 0.00016740859406365308
+      },
+      {
+        "stage": 3,
+        "D_mid": 1.4860506123259443e-05,
+        "D_out": 2.2015118593026782e-05
+      }
+    ],
+    "layernorm_gradient_norms": [
+      {
+        "stage": 0,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.1590222716331482
+      },
+      {
+        "stage": 0,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.17137795686721802
+      },
+      {
+        "stage": 0,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.2545897960662842
+      },
+      {
+        "stage": 0,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.18721355497837067
+      },
+      {
+        "stage": 1,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.14539580047130585
+      },
+      {
+        "stage": 1,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.13024429976940155
+      },
+      {
+        "stage": 1,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.09416912496089935
+      },
+      {
+        "stage": 1,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.11294577270746231
+      },
+      {
+        "stage": 2,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.05735877901315689
+      },
+      {
+        "stage": 2,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.04989602044224739
+      },
+      {
+        "stage": 2,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.044855996966362
+      },
+      {
+        "stage": 2,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.04065356031060219
+      },
+      {
+        "stage": 2,
+        "block": 2,
+        "parameter": "weight",
+        "gradient_norm": 0.022199491038918495
+      },
+      {
+        "stage": 2,
+        "block": 2,
+        "parameter": "bias",
+        "gradient_norm": 0.025816932320594788
+      },
+      {
+        "stage": 2,
+        "block": 3,
+        "parameter": "weight",
+        "gradient_norm": 0.028319042176008224
+      },
+      {
+        "stage": 2,
+        "block": 3,
+        "parameter": "bias",
+        "gradient_norm": 0.03201062232255936
+      },
+      {
+        "stage": 2,
+        "block": 4,
+        "parameter": "weight",
+        "gradient_norm": 0.019592614844441414
+      },
+      {
+        "stage": 2,
+        "block": 4,
+        "parameter": "bias",
+        "gradient_norm": 0.019952356815338135
+      },
+      {
+        "stage": 2,
+        "block": 5,
+        "parameter": "weight",
+        "gradient_norm": 0.016500677913427353
+      },
+      {
+        "stage": 2,
+        "block": 5,
+        "parameter": "bias",
+        "gradient_norm": 0.018155986443161964
+      },
+      {
+        "stage": 3,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.002837636973708868
+      },
+      {
+        "stage": 3,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.0029856516048312187
+      },
+      {
+        "stage": 3,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.0015437297988682985
+      },
+      {
+        "stage": 3,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.0020163613371551037
+      }
+    ],
+    "final_layernorm_gradient_norms": [
+      {
+        "parameter": "weight",
+        "gradient_norm": 0.6288642287254333
+      },
+      {
+        "parameter": "bias",
+        "gradient_norm": 0.45369237661361694
+      }
+    ],
+    "convolution_delay_gradient_norms": [
+      {
+        "module": "downsample_layers.1.0",
+        "gradient_norm": 0.0012373572681099176,
+        "effective_delay": 0.019999999552965164,
+        "groups": 1
+      },
+      {
+        "module": "downsample_layers.2.0",
+        "gradient_norm": 0.00014240147720556706,
+        "effective_delay": 0.009999999776482582,
+        "groups": 1
+      },
+      {
+        "module": "downsample_layers.3.0",
+        "gradient_norm": 2.3684378902544267e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 1
+      },
+      {
+        "module": "stages.0.0.dwconv",
+        "gradient_norm": 0.02025008015334606,
+        "effective_delay": 0.05000000447034836,
+        "groups": 96
+      },
+      {
+        "module": "stages.0.1.dwconv",
+        "gradient_norm": 0.02358344756066799,
+        "effective_delay": 0.05000000447034836,
+        "groups": 96
+      },
+      {
+        "module": "stages.1.0.dwconv",
+        "gradient_norm": 0.0005336292088031769,
+        "effective_delay": 0.019999999552965164,
+        "groups": 192
+      },
+      {
+        "module": "stages.1.1.dwconv",
+        "gradient_norm": 0.0006487701903097332,
+        "effective_delay": 0.019999999552965164,
+        "groups": 192
+      },
+      {
+        "module": "stages.2.0.dwconv",
+        "gradient_norm": 1.6007037629606202e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.2.1.dwconv",
+        "gradient_norm": 2.2441628971137106e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.2.2.dwconv",
+        "gradient_norm": 1.6616939319646917e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.2.3.dwconv",
+        "gradient_norm": 1.447661270503886e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.2.4.dwconv",
+        "gradient_norm": 1.0969502909574658e-05,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.2.5.dwconv",
+        "gradient_norm": 8.337006875080988e-06,
+        "effective_delay": 0.009999999776482582,
+        "groups": 384
+      },
+      {
+        "module": "stages.3.0.dwconv",
+        "gradient_norm": 3.575163702862483e-07,
+        "effective_delay": 0.009999999776482582,
+        "groups": 768
+      },
+      {
+        "module": "stages.3.1.dwconv",
+        "gradient_norm": 3.3173677138620405e-07,
+        "effective_delay": 0.009999999776482582,
+        "groups": 768
+      }
+    ]
+  },
+  "parameter_count": 20925796,
+  "temporal_formulation": "continuous analytic TTFS",
+  "simulation_steps": null,
+  "mixup_order": "raw images in [0,1], then TTFS encode",
+  "constrained_finetune_initialization": null
+}

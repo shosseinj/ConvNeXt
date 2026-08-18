@@ -177,6 +177,7 @@ def args_parser():
     checkpoint_group = parser.add_mutually_exclusive_group()
     checkpoint_group.add_argument("--resume", default="")
     checkpoint_group.add_argument("--pretrained_checkpoint", default="")
+    checkpoint_group.add_argument("--ann_pretrained_checkpoint", default="")
     checkpoint_group.add_argument("--constrained_finetune_checkpoint", default="")
     parser.add_argument("--experiment_name", default="")
     parser.add_argument("--experiment_notes", default="")
@@ -210,6 +211,7 @@ def args_parser():
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--split_seed", type=int, default=None)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--conv_delay_lr", type=float, default=None)
     parser.add_argument("--min_lr", type=float, default=1e-6)
@@ -263,6 +265,8 @@ def args_parser():
     args.crop_padding = selected_dataset["crop_padding"]
     if args.val_size is None:
         args.val_size = selected_dataset["default_val_size"]
+    if args.split_seed is None:
+        args.split_seed = args.seed
     try:
         args.experiment_name, args.output_dir = resolve_experiment_identity(
             dataset=args.dataset,
@@ -464,7 +468,7 @@ def build_loaders(args):
             f"val_size must be between 1 and {len(train_dataset) - 1}, "
             f"got {args.val_size}"
         )
-    generator = torch.Generator().manual_seed(args.seed)
+    generator = torch.Generator().manual_seed(args.split_seed)
     indices = torch.randperm(len(train_dataset), generator=generator).tolist()
     validation_indices = indices[: args.val_size]
     train_indices = indices[args.val_size :]
@@ -925,6 +929,160 @@ def convert_dense_checkpoint_to_ttfs(model, checkpoint, args):
     }
 
 
+def validate_ann_pretrained_architecture(checkpoint, args):
+    architecture = checkpoint.get("architecture") or {}
+    source_args = checkpoint.get("args") or {}
+    if not isinstance(architecture, dict) or not isinstance(source_args, dict):
+        raise ValueError("ANN checkpoint architecture and args must be dictionaries")
+    expected = {
+        "model_type": (architecture.get("model_type"), "fully_dense_ann"),
+        "num_classes": (architecture.get("num_classes"), args.num_classes),
+        "depths": (architecture.get("depths"), list(args.depths)),
+        "dims": (architecture.get("dims"), list(args.dims)),
+        "kernel_size": (architecture.get("kernel_size"), args.dw_kernel_size),
+        "pw1_mode": (architecture.get("pw1_mode"), "dense"),
+        "pw2_mode": (architecture.get("pw2_mode"), "dense"),
+        "dwconv_mode": (architecture.get("dwconv_mode"), "dense"),
+        "downsample_mode": (architecture.get("downsample_mode"), "dense"),
+        "residual_operator": (architecture.get("residual_operator"), "sum"),
+        "normalization": (architecture.get("normalization"), "layernorm"),
+        "activation": (architecture.get("activation"), "gelu"),
+        "dataset": (source_args.get("dataset"), args.dataset),
+        "split_seed": (source_args.get("split_seed"), args.split_seed),
+    }
+    mismatches = []
+    for field, (source, target) in expected.items():
+        if field in {"depths", "dims"} and source is not None:
+            source = list(source)
+        if source != target:
+            mismatches.append(f"{field}: source={source!r}, target={target!r}")
+    target_requirements = {
+        "pw1_mode": _canonical_pw1_mode(args.pw1_mode),
+        "pw2_mode": args.pw2_mode,
+        "dwconv_mode": args.dwconv_mode,
+        "downsample_mode": args.downsample_mode,
+        "residual_operator": args.residual_operator,
+        "ttfs_norm_mode": args.ttfs_norm_mode,
+        "final_score_norm": args.final_score_norm,
+    }
+    required_target = {
+        "pw1_mode": "ttfs",
+        "pw2_mode": "ttfs",
+        "dwconv_mode": "ttfs",
+        "downsample_mode": "ttfs",
+        "residual_operator": "min",
+        "ttfs_norm_mode": "score_layernorm",
+        "final_score_norm": True,
+    }
+    for field, value in target_requirements.items():
+        if value != required_target[field]:
+            mismatches.append(
+                f"target {field}: actual={value!r}, required={required_target[field]!r}"
+            )
+    if mismatches:
+        raise ValueError(
+            "ANN checkpoint is incompatible with Fully-TTFS target: "
+            + "; ".join(mismatches)
+        )
+
+
+def _ann_to_ttfs_key(source_key):
+    fields = source_key.split(".")
+    if source_key == "norm.weight":
+        return "final_norm.weight"
+    if source_key == "norm.bias":
+        return "final_norm.bias"
+    if len(fields) >= 5 and fields[0] == "stages":
+        if fields[3] == "dwconv" and fields[4] in {"weight", "bias"}:
+            return ".".join(fields[:4] + ["conv"] + fields[4:])
+        if fields[3] == "pwconv1":
+            return ".".join(fields[:3] + ["pw1"] + fields[4:])
+        if fields[3] == "pwconv2":
+            return ".".join(fields[:3] + ["pw2"] + fields[4:])
+    if (
+        len(fields) == 4
+        and fields[0] == "downsample_layers"
+        and fields[1] in {"1", "2", "3"}
+        and fields[2] == "1"
+        and fields[3] in {"weight", "bias"}
+    ):
+        return ".".join(fields[:2] + ["0", "conv", fields[3]])
+    return source_key
+
+
+def convert_ann_checkpoint_to_ttfs(model, checkpoint, args):
+    validate_ann_pretrained_architecture(checkpoint, args)
+    source_name, source_state = _checkpoint_state(checkpoint)
+    if source_name != "ema":
+        raise ValueError("ANN conversion requires authoritative EMA weights")
+    target_state = model.state_dict()
+    delay_keys = sorted(
+        key for key in target_state
+        if key.endswith(".D_conv") or key.endswith(".D_mid") or key.endswith(".D_out")
+    )
+    if len(delay_keys) != 39:
+        raise ValueError(f"Fully-TTFS target must contain 39 delay tensors, got {len(delay_keys)}")
+    converted = {key: target_state[key].clone() for key in delay_keys}
+    excluded = []
+    transferred = []
+    for source_key, source_tensor in source_state.items():
+        fields = source_key.split(".")
+        ann_only_norm = (
+            len(fields) == 4
+            and fields[0] == "downsample_layers"
+            and (
+                (fields[1] == "0" and fields[2] == "1")
+                or (fields[1] in {"1", "2", "3"} and fields[2] == "0")
+            )
+            and fields[3] in {"weight", "bias"}
+        )
+        if ann_only_norm:
+            excluded.append(source_key)
+            continue
+        target_key = _ann_to_ttfs_key(source_key)
+        if target_key not in target_state:
+            raise ValueError(
+                f"ANN checkpoint parameter has no Fully-TTFS mapping: {source_key}"
+            )
+        if source_tensor.shape != target_state[target_key].shape:
+            raise ValueError(
+                f"Shape mismatch for {source_key} -> {target_key}: "
+                f"source={tuple(source_tensor.shape)}, "
+                f"target={tuple(target_state[target_key].shape)}"
+            )
+        if target_key in converted:
+            raise ValueError(f"Duplicate Fully-TTFS target parameter: {target_key}")
+        converted[target_key] = source_tensor.detach().clone()
+        transferred.append({"source": source_key, "target": target_key})
+    expected_excluded = 2 * (1 + 3)
+    if len(excluded) != expected_excluded:
+        raise ValueError(
+            f"Expected exactly {expected_excluded} ANN-only normalization tensors, "
+            f"got {len(excluded)}"
+        )
+    missing = sorted(set(target_state) - set(converted))
+    if missing:
+        raise ValueError(
+            "ANN conversion did not initialize target parameters: " + ", ".join(missing)
+        )
+    incompatible = model.load_state_dict(converted, strict=True)
+    return {
+        "initialization_type": "fully_dense_ann_to_fully_ttfs",
+        "source_state": source_name,
+        "source_parameter_keys": len(source_state),
+        "transferred_parameter_keys": len(transferred),
+        "parameter_mapping": transferred,
+        "excluded_source_keys": sorted(excluded),
+        "initialized_delay_keys": delay_keys,
+        "missing_keys": list(incompatible.missing_keys),
+        "unexpected_keys": list(incompatible.unexpected_keys),
+        "source_best_epoch": checkpoint.get("best_epoch"),
+        "source_best_validation_accuracy": checkpoint.get(
+            "best_validation_accuracy"
+        ),
+    }
+
+
 def validate_constrained_finetune_architecture(checkpoint, args):
     _, state = _checkpoint_state(checkpoint)
     architecture = checkpoint.get("architecture") or {}
@@ -1058,7 +1216,10 @@ def apply_pretrained_lineage(args, checkpoint):
     args.pretrained_initialization = initialization
     source_checkpoint = initialization.get("source_checkpoint")
     if source_checkpoint:
-        args.pretrained_checkpoint = str(source_checkpoint)
+        if initialization.get("initialization_type") == "fully_dense_ann_to_fully_ttfs":
+            args.ann_pretrained_checkpoint = str(source_checkpoint)
+        else:
+            args.pretrained_checkpoint = str(source_checkpoint)
     return initialization
 
 
@@ -1231,7 +1392,9 @@ def create_experiment_report(
             "status": (
                 "resumed"
                 if args.resume
-                else "fine_tuning" if args.pretrained_checkpoint else "running"
+                else "fine_tuning"
+                if (args.pretrained_checkpoint or args.ann_pretrained_checkpoint)
+                else "running"
             ),
             "updated_at": local_timestamp(),
         },
@@ -1304,6 +1467,7 @@ def create_experiment_report(
             "ema_enabled": args.ema,
             "ema_decay": args.ema_decay if args.ema else None,
             "pretrained_checkpoint": args.pretrained_checkpoint or None,
+            "ann_pretrained_checkpoint": args.ann_pretrained_checkpoint or None,
             "pretrained_initialization": getattr(
                 args, "pretrained_initialization", None
             ),
@@ -1501,6 +1665,38 @@ def main():
             "Transferred parameter keys: "
             f"{pretrained_initialization['transferred_parameter_keys']}; "
             "initialized convolution delay tensors: "
+            f"{len(pretrained_initialization['initialized_delay_keys'])}"
+        )
+    if args.ann_pretrained_checkpoint:
+        ann_pretrained_path = Path(args.ann_pretrained_checkpoint)
+        if not ann_pretrained_path.is_file():
+            raise FileNotFoundError(
+                f"ANN pretrained checkpoint does not exist: {ann_pretrained_path}"
+            )
+        ann_pretrained_checkpoint = torch.load(
+            ann_pretrained_path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        pretrained_initialization = convert_ann_checkpoint_to_ttfs(
+            model,
+            ann_pretrained_checkpoint,
+            args,
+        )
+        pretrained_initialization["source_checkpoint"] = str(
+            ann_pretrained_path.resolve()
+        )
+        args.pretrained_initialization = pretrained_initialization
+        print(
+            "Initialized Fully-TTFS model from fully dense ANN checkpoint: "
+            f"{pretrained_initialization['source_checkpoint']}"
+        )
+        print(
+            "Transferred parameter keys: "
+            f"{pretrained_initialization['transferred_parameter_keys']}; "
+            "excluded ANN-only normalization tensors: "
+            f"{len(pretrained_initialization['excluded_source_keys'])}; "
+            "initialized TTFS delay tensors: "
             f"{len(pretrained_initialization['initialized_delay_keys'])}"
         )
     if args.constrained_finetune_checkpoint:
