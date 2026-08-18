@@ -1,0 +1,346 @@
+{
+  "data_path": "..\\cifar_data",
+  "output_dir": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_initialization\\low\\seed_42",
+  "resume": "",
+  "pretrained_checkpoint": "",
+  "ann_pretrained_checkpoint": "",
+  "constrained_finetune_checkpoint": "",
+  "experiment_name": "cifar100_delay_init_low_seed_42_seed42",
+  "experiment_notes": "Reviewer 1 Comment 4 - Delay initialization ablation",
+  "dataset": "cifar100",
+  "residual_operator": "min",
+  "allow_pretrained_residual_operator_change": false,
+  "pw1_mode": "ttfs",
+  "pw2_mode": "ttfs",
+  "ttfs_norm_mode": "score_layernorm",
+  "final_score_norm": true,
+  "download": false,
+  "epochs": 300,
+  "batch_size": 128,
+  "num_workers": 4,
+  "seed": 42,
+  "split_seed": 42,
+  "lr": 0.0002,
+  "conv_delay_lr": null,
+  "min_lr": 1e-06,
+  "warmup_epochs": 10,
+  "lr_scheduler_patience": 3,
+  "lr_scheduler_factor": 0.85,
+  "early_stopping_min_delta": 0.02,
+  "ema": true,
+  "ema_decay": 0.9998,
+  "weight_decay": 0.05,
+  "label_smoothing": 0.1,
+  "head_dropout": 0.1,
+  "spike_dropout": 0.0,
+  "mixup_alpha": 0.2,
+  "cutmix_alpha": 1.0,
+  "randaugment": true,
+  "randaugment_num_ops": 2,
+  "randaugment_magnitude": 9,
+  "random_erasing": 0.1,
+  "early_stopping_patience": 30,
+  "dims": [
+    96,
+    192,
+    384,
+    768
+  ],
+  "depths": [
+    2,
+    2,
+    6,
+    2
+  ],
+  "dw_kernel_size": 3,
+  "dwconv_mode": "dense",
+  "downsample_mode": "dense",
+  "grad_clip": 5.0,
+  "drop_path": 0.0,
+  "t_min": 0.0,
+  "t_max": 1.0,
+  "force_positive_weights": false,
+  "force_positive_pointwise_weights": false,
+  "init_delay": 0.0,
+  "stage_delays": "0.025,0.01,0.005,0.005",
+  "amp": true,
+  "device": "cuda",
+  "val_size": 5000,
+  "print_freq": 50,
+  "dataset_display_name": "CIFAR-100",
+  "num_classes": 100,
+  "input_resolution": [
+    32,
+    32
+  ],
+  "crop_padding": 4,
+  "dataset_configuration": {
+    "name": "CIFAR-100",
+    "canonical_name": "cifar100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ]
+  },
+  "stem": {
+    "in_channels": 3,
+    "kernel_size": 3,
+    "stride": 1,
+    "padding": 1,
+    "out_channels": 96
+  },
+  "spatial_schedule": [
+    32,
+    32,
+    16,
+    8,
+    4
+  ],
+  "depthwise_kernel_size": 3,
+  "depthwise_mode": "dense",
+  "downsampling": {
+    "kernel_size": 3,
+    "stride": 2,
+    "padding": 1,
+    "mode": "dense"
+  },
+  "actual_stage_delays": [
+    {
+      "stage": 0,
+      "mid": 0.02499999664723873,
+      "out": 0.02499999664723873
+    },
+    {
+      "stage": 1,
+      "mid": 0.009999999776482582,
+      "out": 0.009999999776482582
+    },
+    {
+      "stage": 2,
+      "mid": 0.00500000175088644,
+      "out": 0.00500000175088644
+    },
+    {
+      "stage": 3,
+      "mid": 0.00500000175088644,
+      "out": 0.00500000175088644
+    }
+  ],
+  "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+  "delay_gradient_norms_test_backward": [
+    {
+      "stage": 0,
+      "D_mid": 1.5974752696786426e-05,
+      "D_out": 5.569966726512445e-05
+    },
+    {
+      "stage": 1,
+      "D_mid": 0.00014043307155405877,
+      "D_out": 0.0003820688462170981
+    },
+    {
+      "stage": 2,
+      "D_mid": 0.00028925108235555583,
+      "D_out": 0.0005700416059528634
+    },
+    {
+      "stage": 3,
+      "D_mid": 0.0003005493038041136,
+      "D_out": 0.00044640922480325434
+    }
+  ],
+  "ttfs_normalization_mode": "score_layernorm",
+  "ttfs_normalization_smoke_test": {
+    "logits_shape": [
+      2,
+      100
+    ],
+    "logits_finite": true,
+    "delay_gradient_norms": [
+      {
+        "stage": 0,
+        "D_mid": 1.5974752696786426e-05,
+        "D_out": 5.569966726512445e-05
+      },
+      {
+        "stage": 1,
+        "D_mid": 0.00014043307155405877,
+        "D_out": 0.0003820688462170981
+      },
+      {
+        "stage": 2,
+        "D_mid": 0.00028925108235555583,
+        "D_out": 0.0005700416059528634
+      },
+      {
+        "stage": 3,
+        "D_mid": 0.0003005493038041136,
+        "D_out": 0.00044640922480325434
+      }
+    ],
+    "layernorm_gradient_norms": [
+      {
+        "stage": 0,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.00013920740457251668
+      },
+      {
+        "stage": 0,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.00013012514682486653
+      },
+      {
+        "stage": 0,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 1.8567654478829354e-05
+      },
+      {
+        "stage": 0,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 2.77231156360358e-05
+      },
+      {
+        "stage": 1,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.002545164665207267
+      },
+      {
+        "stage": 1,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.003257953329011798
+      },
+      {
+        "stage": 1,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.0013802610337734222
+      },
+      {
+        "stage": 1,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.0016795310657471418
+      },
+      {
+        "stage": 2,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.008803589269518852
+      },
+      {
+        "stage": 2,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.009565365500748158
+      },
+      {
+        "stage": 2,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.005489504896104336
+      },
+      {
+        "stage": 2,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.008959339931607246
+      },
+      {
+        "stage": 2,
+        "block": 2,
+        "parameter": "weight",
+        "gradient_norm": 0.008141206577420235
+      },
+      {
+        "stage": 2,
+        "block": 2,
+        "parameter": "bias",
+        "gradient_norm": 0.010890776291489601
+      },
+      {
+        "stage": 2,
+        "block": 3,
+        "parameter": "weight",
+        "gradient_norm": 0.0056072562001645565
+      },
+      {
+        "stage": 2,
+        "block": 3,
+        "parameter": "bias",
+        "gradient_norm": 0.008851525373756886
+      },
+      {
+        "stage": 2,
+        "block": 4,
+        "parameter": "weight",
+        "gradient_norm": 0.009476873092353344
+      },
+      {
+        "stage": 2,
+        "block": 4,
+        "parameter": "bias",
+        "gradient_norm": 0.008330724202096462
+      },
+      {
+        "stage": 2,
+        "block": 5,
+        "parameter": "weight",
+        "gradient_norm": 0.00807267613708973
+      },
+      {
+        "stage": 2,
+        "block": 5,
+        "parameter": "bias",
+        "gradient_norm": 0.009122511371970177
+      },
+      {
+        "stage": 3,
+        "block": 0,
+        "parameter": "weight",
+        "gradient_norm": 0.017181288450956345
+      },
+      {
+        "stage": 3,
+        "block": 0,
+        "parameter": "bias",
+        "gradient_norm": 0.02212509512901306
+      },
+      {
+        "stage": 3,
+        "block": 1,
+        "parameter": "weight",
+        "gradient_norm": 0.019308453425765038
+      },
+      {
+        "stage": 3,
+        "block": 1,
+        "parameter": "bias",
+        "gradient_norm": 0.0229413453489542
+      }
+    ],
+    "final_layernorm_gradient_norms": [
+      {
+        "parameter": "weight",
+        "gradient_norm": 0.10160642117261887
+      },
+      {
+        "parameter": "bias",
+        "gradient_norm": 0.06889142841100693
+      }
+    ],
+    "convolution_delay_gradient_norms": []
+  },
+  "parameter_count": 20920036,
+  "temporal_formulation": "continuous analytic TTFS",
+  "simulation_steps": null,
+  "mixup_order": "raw images in [0,1], then TTFS encode",
+  "pretrained_initialization": null,
+  "constrained_finetune_initialization": null
+}
