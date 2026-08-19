@@ -1,0 +1,406 @@
+{
+  "dataset": "CIFAR-100",
+  "regularization_definition": "mean effective bounded D_mid/D_out delay",
+  "seeds": [
+    42,
+    6543,
+    7777
+  ],
+  "runs": [
+    {
+      "weight": 0.0,
+      "label": "Reference",
+      "seed": 42,
+      "validation_accuracy": 74.02,
+      "test_accuracy": 73.44,
+      "overall_mean_delay": 0.07002225671641772,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.14836370859605572,
+          "out": 0.14837269702305397
+        },
+        {
+          "stage": 1,
+          "mid": 0.09295553119833737,
+          "out": 0.09230612460911895
+        },
+        {
+          "stage": 2,
+          "mid": 0.06489306394764248,
+          "out": 0.06319031038826022
+        },
+        {
+          "stage": 3,
+          "mid": 0.06272811191956862,
+          "out": 0.06275313957545829
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_42"
+    },
+    {
+      "weight": 0.0,
+      "label": "Reference",
+      "seed": 6543,
+      "validation_accuracy": 73.08,
+      "test_accuracy": 73.29,
+      "overall_mean_delay": 0.06646867232157619,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.14383550673179948,
+          "out": 0.14379817674246928
+        },
+        {
+          "stage": 1,
+          "mid": 0.08960555091713711,
+          "out": 0.08824525682333235
+        },
+        {
+          "stage": 2,
+          "mid": 0.06125107832970874,
+          "out": 0.059725280092809245
+        },
+        {
+          "stage": 3,
+          "mid": 0.05938588925770697,
+          "out": 0.05928982689268499
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_6543"
+    },
+    {
+      "weight": 0.0,
+      "label": "Reference",
+      "seed": 7777,
+      "validation_accuracy": 75.84,
+      "test_accuracy": 73.99,
+      "overall_mean_delay": 0.07416127056635889,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.15359794065201035,
+          "out": 0.15359728767847022
+        },
+        {
+          "stage": 1,
+          "mid": 0.09953679660005339,
+          "out": 0.09703576906273763
+        },
+        {
+          "stage": 2,
+          "mid": 0.06890238735488513,
+          "out": 0.06723272624205695
+        },
+        {
+          "stage": 3,
+          "mid": 0.0662964280709275,
+          "out": 0.06682476846375114
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\downsample_dense_dwconv_dense\\seed_7777"
+    },
+    {
+      "weight": 0.01,
+      "label": "lambda_0p01",
+      "seed": 42,
+      "validation_accuracy": 74.48,
+      "test_accuracy": 74.2,
+      "overall_mean_delay": 0.05651622631893311,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.010797396633279277,
+          "out": 0.010371796146500856
+        },
+        {
+          "stage": 1,
+          "mid": 0.09215005695295986,
+          "out": 0.011556960989158446
+        },
+        {
+          "stage": 2,
+          "mid": 0.06304873507583074,
+          "out": 0.019476848919213
+        },
+        {
+          "stage": 3,
+          "mid": 0.06082577810896813,
+          "out": 0.05987548702978529
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p01\\seed_42"
+    },
+    {
+      "weight": 0.01,
+      "label": "lambda_0p01",
+      "seed": 6543,
+      "validation_accuracy": 73.62,
+      "test_accuracy": 73.79,
+      "overall_mean_delay": 0.04839678144363342,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.010486906224590106,
+          "out": 0.010488722022273578
+        },
+        {
+          "stage": 1,
+          "mid": 0.08015975019103887,
+          "out": 0.011780546573087728
+        },
+        {
+          "stage": 2,
+          "mid": 0.05346124741481617,
+          "out": 0.01861683078661574
+        },
+        {
+          "stage": 3,
+          "mid": 0.051873687477079024,
+          "out": 0.049856822475703666
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p01\\seed_6543"
+    },
+    {
+      "weight": 0.01,
+      "label": "lambda_0p01",
+      "seed": 7777,
+      "validation_accuracy": 74.74,
+      "test_accuracy": 73.18,
+      "overall_mean_delay": 0.05131307558580032,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.010516819848514084,
+          "out": 0.010473319940501824
+        },
+        {
+          "stage": 1,
+          "mid": 0.08388028633150195,
+          "out": 0.011202673701821672
+        },
+        {
+          "stage": 2,
+          "mid": 0.05687240083797304,
+          "out": 0.020110671420196822
+        },
+        {
+          "stage": 3,
+          "mid": 0.05490817958404174,
+          "out": 0.05334380137780196
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p01\\seed_7777"
+    },
+    {
+      "weight": 0.1,
+      "label": "lambda_0p1",
+      "seed": 42,
+      "validation_accuracy": 72.98,
+      "test_accuracy": 72.8,
+      "overall_mean_delay": 0.04390609628356195,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.0019946941602029256,
+          "out": 0.0019281629211036488
+        },
+        {
+          "stage": 1,
+          "mid": 0.08199429000039042,
+          "out": 0.003158562562930456
+        },
+        {
+          "stage": 2,
+          "mid": 0.049515234494012676,
+          "out": 0.008119850216189661
+        },
+        {
+          "stage": 3,
+          "mid": 0.04866162410386702,
+          "out": 0.04321015728601196
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p1\\seed_42"
+    },
+    {
+      "weight": 0.1,
+      "label": "lambda_0p1",
+      "seed": 6543,
+      "validation_accuracy": 72.1,
+      "test_accuracy": 72.76,
+      "overall_mean_delay": 0.04582256581678572,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.0018079857950397127,
+          "out": 0.0018028266858891584
+        },
+        {
+          "stage": 1,
+          "mid": 0.08155228803661885,
+          "out": 0.004392483905576228
+        },
+        {
+          "stage": 2,
+          "mid": 0.05180285929802469,
+          "out": 0.009264774958814491
+        },
+        {
+          "stage": 3,
+          "mid": 0.05118742822802839,
+          "out": 0.04545559723154232
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p1\\seed_6543"
+    },
+    {
+      "weight": 0.1,
+      "label": "lambda_0p1",
+      "seed": 7777,
+      "validation_accuracy": 75.12,
+      "test_accuracy": 74.32,
+      "overall_mean_delay": 0.04751363890920955,
+      "per_stage_delays": [
+        {
+          "stage": 0,
+          "mid": 0.0017803979847788771,
+          "out": 0.0017794305640563834
+        },
+        {
+          "stage": 1,
+          "mid": 0.08732298348422773,
+          "out": 0.0038139529245502977
+        },
+        {
+          "stage": 2,
+          "mid": 0.05379051916234959,
+          "out": 0.010982960471665137
+        },
+        {
+          "stage": 3,
+          "mid": 0.05196944561915492,
+          "out": 0.04652412163341069
+        }
+      ],
+      "directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p1\\seed_7777"
+    }
+  ],
+  "aggregates": [
+    {
+      "weight": 0.0,
+      "label": "Reference",
+      "seeds": [
+        42,
+        6543,
+        7777
+      ],
+      "validation_accuracy": {
+        "values": [
+          74.02,
+          73.08,
+          75.84
+        ],
+        "mean": 74.31333333333333,
+        "sample_std": 1.4031868490451804
+      },
+      "test_accuracy": {
+        "values": [
+          73.44,
+          73.29,
+          73.99
+        ],
+        "mean": 73.57333333333334,
+        "sample_std": 0.3685557397915948
+      },
+      "overall_mean_delay": {
+        "values": [
+          0.07002225671641772,
+          0.06646867232157619,
+          0.07416127056635889
+        ],
+        "mean": 0.0702173998681176,
+        "sample_std": 0.0038500100748114934
+      },
+      "test_accuracy_delta_vs_reference": 0.0,
+      "mean_delay_reduction_vs_reference": 0.0
+    },
+    {
+      "weight": 0.01,
+      "label": "lambda_0p01",
+      "seeds": [
+        42,
+        6543,
+        7777
+      ],
+      "validation_accuracy": {
+        "values": [
+          74.48,
+          73.62,
+          74.74
+        ],
+        "mean": 74.28,
+        "sample_std": 0.5861740355901099
+      },
+      "test_accuracy": {
+        "values": [
+          74.2,
+          73.79,
+          73.18
+        ],
+        "mean": 73.72333333333334,
+        "sample_std": 0.5132575701666089
+      },
+      "overall_mean_delay": {
+        "values": [
+          0.05651622631893311,
+          0.04839678144363342,
+          0.05131307558580032
+        ],
+        "mean": 0.052075361116122286,
+        "sample_std": 0.004113047008369985
+      },
+      "test_accuracy_delta_vs_reference": 0.15000000000000568,
+      "mean_delay_reduction_vs_reference": 0.01814203875199532
+    },
+    {
+      "weight": 0.1,
+      "label": "lambda_0p1",
+      "seeds": [
+        42,
+        6543,
+        7777
+      ],
+      "validation_accuracy": {
+        "values": [
+          72.98,
+          72.1,
+          75.12
+        ],
+        "mean": 73.39999999999999,
+        "sample_std": 1.5531902652283183
+      },
+      "test_accuracy": {
+        "values": [
+          72.8,
+          72.76,
+          74.32
+        ],
+        "mean": 73.29333333333334,
+        "sample_std": 0.8893443277681177
+      },
+      "overall_mean_delay": {
+        "values": [
+          0.04390609628356195,
+          0.04582256581678572,
+          0.04751363890920955
+        ],
+        "mean": 0.04574743366985241,
+        "sample_std": 0.0018049444807509188
+      },
+      "test_accuracy_delta_vs_reference": -0.28000000000000114,
+      "mean_delay_reduction_vs_reference": 0.0244699661982652
+    }
+  ]
+}

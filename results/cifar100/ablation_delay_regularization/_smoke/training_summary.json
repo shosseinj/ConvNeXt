@@ -1,0 +1,48 @@
+{
+  "best_epoch": 0,
+  "last_epoch": 0,
+  "best_validation_accuracy": 3.42,
+  "epochs_without_improvement": 0,
+  "early_stopped": false,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 4.457678929901123,
+    "classification_loss": 4.457678929901123,
+    "delay_regularization": 0.0,
+    "weighted_delay_regularization": 0.0,
+    "total_loss": 4.457678929901123,
+    "accuracy": 3.04,
+    "samples": 10000,
+    "seconds": 0.7985806465148926
+  },
+  "delay_regularization_weight": 0.1,
+  "delay_regularization_definition": "mean effective bounded D_mid/D_out delay",
+  "final_effective_delays": {
+    "definition": "mean effective bounded D_mid/D_out delay",
+    "overall_mean": 0.013817806728184223,
+    "per_stage": [
+      {
+        "stage": 0,
+        "mid": 0.049321793019771576,
+        "out": 0.049321793019771576
+      },
+      {
+        "stage": 1,
+        "mid": 0.019735727459192276,
+        "out": 0.019735727459192276
+      },
+      {
+        "stage": 2,
+        "mid": 0.009872819297015667,
+        "out": 0.009872819297015667
+      },
+      {
+        "stage": 3,
+        "mid": 0.009872819297015667,
+        "out": 0.009872819297015667
+      }
+    ]
+  },
+  "best_checkpoint": "results\\cifar100\\ablation_delay_regularization\\_smoke\\best_checkpoint.pth",
+  "last_checkpoint": "results\\cifar100\\ablation_delay_regularization\\_smoke\\last_checkpoint.pth"
+}

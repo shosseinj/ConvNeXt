@@ -1,0 +1,48 @@
+{
+  "best_epoch": 170,
+  "last_epoch": 200,
+  "best_validation_accuracy": 72.98,
+  "epochs_without_improvement": 30,
+  "early_stopped": true,
+  "early_stopping_patience": 30,
+  "test_metrics": {
+    "loss": 1.6795992710113525,
+    "classification_loss": 1.6795992710113525,
+    "delay_regularization": 0.0,
+    "weighted_delay_regularization": 0.0,
+    "total_loss": 1.6795992710113525,
+    "accuracy": 72.8,
+    "samples": 10000,
+    "seconds": 11.563871383666992
+  },
+  "delay_regularization_weight": 0.1,
+  "delay_regularization_definition": "mean effective bounded D_mid/D_out delay",
+  "final_effective_delays": {
+    "definition": "mean effective bounded D_mid/D_out delay",
+    "overall_mean": 0.04390609636902809,
+    "per_stage": [
+      {
+        "stage": 0,
+        "mid": 0.0019946941174566746,
+        "out": 0.001928163052070886
+      },
+      {
+        "stage": 1,
+        "mid": 0.08199429512023926,
+        "out": 0.003158562700264156
+      },
+      {
+        "stage": 2,
+        "mid": 0.04951523492733637,
+        "out": 0.008119850574682156
+      },
+      {
+        "stage": 3,
+        "mid": 0.048661625012755394,
+        "out": 0.04321015812456608
+      }
+    ]
+  },
+  "best_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p1\\seed_42\\best_checkpoint.pth",
+  "last_checkpoint": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p1\\seed_42\\last_checkpoint.pth"
+}

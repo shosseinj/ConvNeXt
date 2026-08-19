@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\train_continuous_ttfs_cifar10_32x32_stem1.py", line 2242, in <module>
+    main()
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\train_continuous_ttfs_cifar10_32x32_stem1.py", line 2141, in main
+    save_checkpoint(
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\train_continuous_ttfs_cifar10_32x32_stem1.py", line 1711, in save_checkpoint
+    os.replace(temporary_path, path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p01\\seed_42\\last_checkpoint.pth.tmp' -> 'C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\results\\cifar100\\ablation_delay_regularization\\lambda_0p01\\seed_42\\last_checkpoint.pth'
+Training failed: lambda_0p01, seed=42
+At C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\run_delay_regularization_ablation.ps1:91 char:13
++             throw "Training failed: $($setting.name), seed=$seed"
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Training failed: lambda_0p01, seed=42:String) [], RuntimeException
+    + FullyQualifiedErrorId : Training failed: lambda_0p01, seed=42
+ 

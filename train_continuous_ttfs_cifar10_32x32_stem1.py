@@ -214,6 +214,7 @@ def args_parser():
     parser.add_argument("--split_seed", type=int, default=None)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--conv_delay_lr", type=float, default=None)
+    parser.add_argument("--delay_regularization_weight", type=float, default=0.0)
     parser.add_argument("--min_lr", type=float, default=1e-6)
     parser.add_argument("--warmup_epochs", type=int, default=10)
     parser.add_argument("--lr_scheduler_patience", type=int, default=6)
@@ -304,6 +305,8 @@ def args_parser():
         parser.error("--lr must be positive")
     if args.conv_delay_lr is not None and args.conv_delay_lr <= 0.0:
         parser.error("--conv_delay_lr must be positive")
+    if args.delay_regularization_weight < 0.0:
+        parser.error("--delay_regularization_weight must be non-negative")
     if not 0.0 <= args.ema_decay < 1.0:
         parser.error("--ema_decay must be in [0,1)")
     return args
@@ -651,6 +654,17 @@ def validate_resume_architecture(checkpoint, args):
         )
 
 
+def validate_resume_training_configuration(checkpoint, args):
+    checkpoint_args = checkpoint.get("args") or {}
+    checkpoint_weight = float(
+        checkpoint_args.get("delay_regularization_weight", 0.0)
+    )
+    requested_weight = float(args.delay_regularization_weight)
+    if checkpoint_weight != requested_weight:
+        raise ValueError(
+            "Resume checkpoint delay regularization weight does not match this "
+            f"run. Checkpoint={checkpoint_weight}, requested={requested_weight}."
+        )
 def actual_stage_delays(model):
     values = []
     for stage_index, stage in enumerate(model.stages):
@@ -666,6 +680,35 @@ def actual_stage_delays(model):
             }
         )
     return values
+
+
+def effective_delay_regularization(model):
+    delay_sum = None
+    delay_count = 0
+    for stage in model.stages:
+        for block in stage:
+            raw_delays = (block.D_mid, block.D_out)
+            for raw_delay in raw_delays:
+                if raw_delay is None:
+                    continue
+                effective = block._bounded_delay(
+                    raw_delay, raw_delay.device, raw_delay.dtype
+                )
+                delay_sum = effective.sum() if delay_sum is None else delay_sum + effective.sum()
+                delay_count += effective.numel()
+    if delay_sum is None or delay_count == 0:
+        raise ValueError("Delay regularization requires TTFS D_mid/D_out parameters")
+    return delay_sum / delay_count
+
+
+def effective_delay_statistics(model):
+    with torch.no_grad():
+        mean = float(effective_delay_regularization(model).item())
+    return {
+        "definition": "mean effective bounded D_mid/D_out delay",
+        "overall_mean": mean,
+        "per_stage": actual_stage_delays(model),
+    }
 
 
 def _checkpoint_state(checkpoint):
@@ -1450,6 +1493,10 @@ def create_experiment_report(
             "optimizer": "AdamW",
             "learning_rate": args.lr,
             "convolution_delay_learning_rate": args.conv_delay_lr,
+            "delay_regularization_weight": args.delay_regularization_weight,
+            "delay_regularization_definition": (
+                "mean effective bounded D_mid/D_out delay"
+            ),
             "lr_scheduler": "ReduceLROnPlateau(mode=max)",
             "lr_scheduler_patience": args.lr_scheduler_patience,
             "lr_scheduler_factor": args.lr_scheduler_factor,
@@ -1507,10 +1554,16 @@ def run_epoch(
     model, loader, criterion, device, args, optimizer=None, scaler=None, ema=None
 ):
     training = optimizer is not None
+    delay_regularization_weight = float(
+        getattr(args, "delay_regularization_weight", 0.0)
+    )
     model.train(training)
     total = 0
     weighted_correct = 0.0
     loss_sum = 0.0
+    classification_loss_sum = 0.0
+    delay_regularization_sum = 0.0
+    weighted_delay_regularization_sum = 0.0
     start_time = time.time()
 
     for iteration, (images, labels) in enumerate(loader, start=1):
@@ -1533,9 +1586,18 @@ def run_epoch(
             enabled=args.amp and device.type == "cuda",
         ):
             output = model(images)
-            loss = lam * criterion(output, labels_a) + (1.0 - lam) * criterion(
+            classification_loss = lam * criterion(output, labels_a) + (1.0 - lam) * criterion(
                 output, labels_b
             )
+            if training:
+                delay_regularization = effective_delay_regularization(model)
+                weighted_delay_regularization = (
+                    delay_regularization_weight * delay_regularization
+                )
+            else:
+                delay_regularization = classification_loss.new_zeros(())
+                weighted_delay_regularization = classification_loss.new_zeros(())
+            loss = classification_loss + weighted_delay_regularization
 
         if not torch.isfinite(loss):
             raise FloatingPointError("non-finite loss")
@@ -1560,7 +1622,22 @@ def run_epoch(
         weighted_correct += lam * (predictions == labels_a).sum().item()
         weighted_correct += (1.0 - lam) * (predictions == labels_b).sum().item()
         total += batch_size
-        loss_sum += loss.item() * batch_size
+        if training:
+            metric_values = torch.stack(
+                (
+                    loss.detach(),
+                    classification_loss.detach(),
+                    delay_regularization.detach(),
+                    weighted_delay_regularization.detach(),
+                )
+            ).float().cpu().tolist()
+        else:
+            loss_value = float(loss.detach().item())
+            metric_values = (loss_value, loss_value, 0.0, 0.0)
+        loss_sum += metric_values[0] * batch_size
+        classification_loss_sum += metric_values[1] * batch_size
+        delay_regularization_sum += metric_values[2] * batch_size
+        weighted_delay_regularization_sum += metric_values[3] * batch_size
         if iteration % args.print_freq == 0:
             print(
                 json.dumps(
@@ -1568,6 +1645,12 @@ def run_epoch(
                         "phase": "train" if training else "validation",
                         "iteration": iteration,
                         "loss": loss_sum / total,
+                        "classification_loss": classification_loss_sum / total,
+                        "delay_regularization": delay_regularization_sum / total,
+                        "weighted_delay_regularization": (
+                            weighted_delay_regularization_sum / total
+                        ),
+                        "total_loss": loss_sum / total,
                         "accuracy": 100.0 * weighted_correct / total,
                     }
                 ),
@@ -1576,6 +1659,12 @@ def run_epoch(
 
     return {
         "loss": loss_sum / max(total, 1),
+        "classification_loss": classification_loss_sum / max(total, 1),
+        "delay_regularization": delay_regularization_sum / max(total, 1),
+        "weighted_delay_regularization": (
+            weighted_delay_regularization_sum / max(total, 1)
+        ),
+        "total_loss": loss_sum / max(total, 1),
         "accuracy": 100.0 * weighted_correct / max(total, 1),
         "samples": total,
         "seconds": time.time() - start_time,
@@ -1860,6 +1949,7 @@ def main():
         if restored_constraint is not None:
             constrained_finetune_initialization = restored_constraint
         validate_resume_architecture(checkpoint, args)
+        validate_resume_training_configuration(checkpoint, args)
         model.load_state_dict(checkpoint["model"], strict=True)
         optimizer.load_state_dict(checkpoint["optimizer"])
         if "scheduler" in checkpoint:
@@ -1924,6 +2014,10 @@ def main():
         },
         "actual_stage_delays": measured_delays,
         "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+        "delay_regularization_weight": args.delay_regularization_weight,
+        "delay_regularization_definition": (
+            "mean effective bounded D_mid/D_out delay"
+        ),
         "delay_gradient_norms_test_backward": delay_gradient_norms,
         "ttfs_normalization_mode": args.ttfs_norm_mode,
         "ttfs_normalization_smoke_test": smoke_test,
@@ -2100,6 +2194,7 @@ def main():
     if evaluation_state is None:
         evaluation_state = best_checkpoint["model"]
     model.load_state_dict(evaluation_state, strict=True)
+    final_delay_statistics = effective_delay_statistics(model)
     with torch.inference_mode():
         # run_epoch has no optimizer here, so the test path cannot apply Mixup.
         test_metrics = run_epoch(model, test_loader, criterion, device, args)
@@ -2112,6 +2207,11 @@ def main():
         "early_stopped": stopped_early,
         "early_stopping_patience": args.early_stopping_patience,
         "test_metrics": test_metrics,
+        "delay_regularization_weight": args.delay_regularization_weight,
+        "delay_regularization_definition": (
+            "mean effective bounded D_mid/D_out delay"
+        ),
+        "final_effective_delays": final_delay_statistics,
         "best_checkpoint": str(best_checkpoint_path),
         "last_checkpoint": str(output_dir / "last_checkpoint.pth"),
     }
@@ -2127,6 +2227,8 @@ def main():
             "best_validation_accuracy": best_validation_accuracy,
             "test_accuracy": test_metrics["accuracy"],
             "test_loss": test_metrics["loss"],
+            "delay_regularization_weight": args.delay_regularization_weight,
+            "final_effective_delays": final_delay_statistics,
             "training_time_seconds": previous_training_time
             + (time.time() - tracking_session_started),
             "checkpoint_path": str(best_checkpoint_path.resolve()),
