@@ -252,6 +252,11 @@ def args_parser():
         type=str2bool,
         default=False,
     )
+    parser.add_argument(
+        "--pointwise_weight_parameterization",
+        choices=("signed", "relu", "softplus"),
+        default="signed",
+    )
     parser.add_argument("--init_delay", type=float, default=0.0)
     parser.add_argument("--stage_delays", default="0.4,0.0,0.0,0.0")
     parser.add_argument("--amp", type=str2bool, default=True)
@@ -307,6 +312,25 @@ def args_parser():
         parser.error("--conv_delay_lr must be positive")
     if args.delay_regularization_weight < 0.0:
         parser.error("--delay_regularization_weight must be non-negative")
+    if args.force_positive_pointwise_weights:
+        if args.pointwise_weight_parameterization == "softplus":
+            parser.error(
+                "--force_positive_pointwise_weights=true conflicts with "
+                "--pointwise_weight_parameterization=softplus"
+            )
+        args.pointwise_weight_parameterization = "relu"
+    args.force_positive_pointwise_weights = (
+        args.pointwise_weight_parameterization == "relu"
+    )
+    if args.pointwise_weight_parameterization == "softplus" and (
+        args.pretrained_checkpoint
+        or args.ann_pretrained_checkpoint
+        or args.constrained_finetune_checkpoint
+    ):
+        parser.error(
+            "Softplus pointwise weights must be trained from scratch; only a "
+            "matching --resume checkpoint is allowed"
+        )
     if not 0.0 <= args.ema_decay < 1.0:
         parser.error("--ema_decay must be in [0,1)")
     return args
@@ -529,6 +553,13 @@ def make_model(args):
         force_positive_pointwise_weights=(
             getattr(args, "force_positive_pointwise_weights", False)
         ),
+        pointwise_weight_parameterization=getattr(
+            args,
+            "pointwise_weight_parameterization",
+            "relu"
+            if getattr(args, "force_positive_pointwise_weights", False)
+            else "signed",
+        ),
         init_delay=args.init_delay,
         stage_delays=delays,
     )
@@ -614,6 +645,13 @@ def architecture_metadata(args):
         "force_positive_pointwise_weights": (
             getattr(args, "force_positive_pointwise_weights", False)
         ),
+        "pointwise_weight_parameterization": getattr(
+            args,
+            "pointwise_weight_parameterization",
+            "relu"
+            if getattr(args, "force_positive_pointwise_weights", False)
+            else "signed",
+        ),
         "pw2_mode": args.pw2_mode,
         "ttfs_norm_mode": args.ttfs_norm_mode,
         "final_score_norm": args.final_score_norm,
@@ -645,6 +683,12 @@ def validate_resume_architecture(checkpoint, args):
         checkpoint_architecture.setdefault("force_positive_weights", False)
         checkpoint_architecture.setdefault(
             "force_positive_pointwise_weights", False
+        )
+        checkpoint_architecture.setdefault(
+            "pointwise_weight_parameterization",
+            "relu"
+            if checkpoint_architecture["force_positive_pointwise_weights"]
+            else "signed",
         )
     if checkpoint_architecture != requested_architecture:
         raise ValueError(
@@ -1478,6 +1522,9 @@ def create_experiment_report(
             "residual_operator": getattr(args, "residual_operator", "min"),
             "pw1_mode": args.pw1_mode,
             "pw2_mode": args.pw2_mode,
+            "pointwise_weight_parameterization": (
+                args.pointwise_weight_parameterization
+            ),
             "ttfs_norm_mode": args.ttfs_norm_mode,
             "final_score_norm": args.final_score_norm,
             "spike_dropout": args.spike_dropout,
@@ -1882,7 +1929,11 @@ def main():
     print(f"Downsampling convolution mode: {args.downsample_mode}")
     print(
         "Non-negative effective pointwise weights: "
-        f"{args.force_positive_pointwise_weights}"
+        f"{args.pointwise_weight_parameterization != 'signed'}"
+    )
+    print(
+        "Pointwise weight parameterization: "
+        f"{args.pointwise_weight_parameterization}"
     )
     print(f"Final score normalization enabled: {args.final_score_norm}")
     print(

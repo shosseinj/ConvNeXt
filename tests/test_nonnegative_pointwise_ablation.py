@@ -10,6 +10,7 @@ from torch import nn
 from Evaluation.evaluate_sparsity import (
     build_model as build_evaluation_model,
     get_checkpoint_pointwise_constraint,
+    get_checkpoint_pointwise_parameterization,
 )
 from models.convnext import Block, ContinuousTTFSConv2d, SpikingBlock
 from train_continuous_ttfs_cifar10_32x32_stem1 import (
@@ -64,6 +65,38 @@ def checkpoint_from_model(model, args):
 
 
 class PointwiseConstraintTests(unittest.TestCase):
+    def test_softplus_initialization_matches_absolute_original_weights(self):
+        dense = Block(dim=2, dw_kernel_size=3)
+        original_pw1 = dense.pwconv1.weight.detach().abs().clamp_min(1e-6).clone()
+        original_pw2 = dense.pwconv2.weight.detach().abs().clamp_min(1e-6).clone()
+        block = SpikingBlock(
+            dense,
+            init_delay=0.05,
+            pointwise_weight_parameterization="softplus",
+        )
+
+        self.assertTrue(torch.all(block.effective_pointwise_weight(block.pw1.weight) > 0))
+        self.assertTrue(torch.all(block.effective_pointwise_weight(block.pw2.weight) > 0))
+        torch.testing.assert_close(
+            block.effective_pointwise_weight(block.pw1.weight), original_pw1
+        )
+        torch.testing.assert_close(
+            block.effective_pointwise_weight(block.pw2.weight), original_pw2
+        )
+
+    def test_softplus_negative_raw_weights_keep_nonzero_gradients(self):
+        dense = Block(dim=2, dw_kernel_size=3)
+        block = SpikingBlock(
+            dense,
+            init_delay=0.05,
+            pointwise_weight_parameterization="softplus",
+        )
+        raw = nn.Parameter(torch.tensor([[-8.0, -2.0]]))
+
+        block.effective_pointwise_weight(raw).sum().backward()
+
+        self.assertTrue(torch.all(raw.grad > 0))
+
     def test_pointwise_constraint_does_not_constrain_ttfs_convolutions(self):
         args = model_args(force_positive_pointwise_weights=True)
         model = make_model(args)
@@ -110,6 +143,27 @@ class PointwiseConstraintTests(unittest.TestCase):
 
 
 class ConstrainedCheckpointTests(unittest.TestCase):
+    def test_cli_rejects_softplus_pretrained_conversion(self):
+        argv = [
+            "trainer.py",
+            "--experiment_name", "test",
+            "--pointwise_weight_parameterization", "softplus",
+            "--pretrained_checkpoint", "signed.pth",
+        ]
+        with patch("sys.argv", argv), self.assertRaises(SystemExit) as error:
+            args_parser()
+        self.assertEqual(error.exception.code, 2)
+
+    def test_cli_maps_legacy_positive_flag_to_relu(self):
+        argv = [
+            "trainer.py",
+            "--experiment_name", "test",
+            "--force_positive_pointwise_weights", "true",
+        ]
+        with patch("sys.argv", argv):
+            args = args_parser()
+        self.assertEqual(args.pointwise_weight_parameterization, "relu")
+
     def test_checkpoint_arguments_are_mutually_exclusive(self):
         argv = [
             "trainer.py",
@@ -187,6 +241,27 @@ class ConstrainedCheckpointTests(unittest.TestCase):
 
 
 class EvaluatorConstraintTests(unittest.TestCase):
+    def test_evaluator_reconstructs_softplus_parameterization(self):
+        checkpoint = {
+            "architecture": {
+                "pointwise_weight_parameterization": "softplus"
+            }
+        }
+        parameterization = get_checkpoint_pointwise_parameterization(checkpoint)
+        self.assertEqual(parameterization, "softplus")
+        args = Namespace(
+            dataset="cifar100", dw_kernel_size=3, cifar_stem=True
+        )
+        model = build_evaluation_model(
+            args,
+            {"dwconv_mode": "ttfs", "downsample_mode": "ttfs"},
+            pointwise_weight_parameterization=parameterization,
+        )
+        self.assertEqual(model.pointwise_weight_parameterization, "softplus")
+        self.assertEqual(
+            model.stages[0][0].pointwise_weight_parameterization, "softplus"
+        )
+
     def test_legacy_checkpoint_defaults_to_unconstrained(self):
         self.assertFalse(get_checkpoint_pointwise_constraint({}))
 

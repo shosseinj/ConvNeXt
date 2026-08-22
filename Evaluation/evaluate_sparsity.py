@@ -301,25 +301,41 @@ def get_checkpoint_residual_operator(checkpoint):
     return value
 
 
-def get_checkpoint_pointwise_constraint(checkpoint):
+def get_checkpoint_pointwise_parameterization(checkpoint):
     architecture = checkpoint.get("architecture") or {}
     saved_args = checkpoint.get("args") or {}
     if not isinstance(architecture, dict) or not isinstance(saved_args, dict):
         raise ValueError("Checkpoint constraint metadata must be a dictionary")
+    parameterization = architecture.get(
+        "pointwise_weight_parameterization",
+        saved_args.get("pointwise_weight_parameterization"),
+    )
+    if parameterization is not None:
+        normalized = str(parameterization).strip().lower()
+        if normalized not in {"signed", "relu", "softplus"}:
+            raise ValueError(
+                "Checkpoint pointwise_weight_parameterization must be "
+                "signed, relu, or softplus"
+            )
+        return normalized
     value = architecture.get(
         "force_positive_pointwise_weights",
         saved_args.get("force_positive_pointwise_weights", False),
     )
     if isinstance(value, bool):
-        return value
+        return "relu" if value else "signed"
     normalized = str(value).strip().lower()
     if normalized in {"true", "1", "yes", "y"}:
-        return True
+        return "relu"
     if normalized in {"false", "0", "no", "n", ""}:
-        return False
+        return "signed"
     raise ValueError(
         "Checkpoint force_positive_pointwise_weights must be boolean"
     )
+
+
+def get_checkpoint_pointwise_constraint(checkpoint):
+    return get_checkpoint_pointwise_parameterization(checkpoint) == "relu"
 
 
 # ============================================================
@@ -429,6 +445,7 @@ def build_model(
     convolution_modes,
     residual_operator="min",
     force_positive_pointwise_weights=False,
+    pointwise_weight_parameterization=None,
 ):
     info = get_dataset_info(args.dataset)
 
@@ -449,8 +466,10 @@ def build_model(
         dwconv_mode=convolution_modes["dwconv_mode"],
         downsample_mode=convolution_modes["downsample_mode"],
         residual_operator=residual_operator,
-        force_positive_pointwise_weights=(
-            force_positive_pointwise_weights
+        force_positive_pointwise_weights=force_positive_pointwise_weights,
+        pointwise_weight_parameterization=(
+            pointwise_weight_parameterization
+            or ("relu" if force_positive_pointwise_weights else "signed")
         ),
         pw2_mode="ttfs",
 
@@ -1302,7 +1321,9 @@ def run_evaluation(args, checkpoint_path):
         state_dict,
     )
     residual_operator = get_checkpoint_residual_operator(checkpoint)
-    pointwise_constraint = get_checkpoint_pointwise_constraint(checkpoint)
+    pointwise_parameterization = get_checkpoint_pointwise_parameterization(
+        checkpoint
+    )
     architecture = checkpoint.get("architecture") or {}
     mode_sources = {
         field: (
@@ -1335,19 +1356,22 @@ def run_evaluation(args, checkpoint_path):
     )
     pointwise_source = (
         "metadata"
-        if "force_positive_pointwise_weights" in architecture
+        if (
+            "pointwise_weight_parameterization" in architecture
+            or "force_positive_pointwise_weights" in architecture
+        )
         else "legacy default"
     )
     print(
-        "Detected non-negative effective pointwise weights: "
-        f"{pointwise_constraint} ({pointwise_source})"
+        "Detected pointwise weight parameterization: "
+        f"{pointwise_parameterization} ({pointwise_source})"
     )
 
     model = build_model(
         args,
         convolution_modes,
         residual_operator,
-        pointwise_constraint,
+        pointwise_weight_parameterization=pointwise_parameterization,
     )
 
     incompatible_keys = model.load_state_dict(

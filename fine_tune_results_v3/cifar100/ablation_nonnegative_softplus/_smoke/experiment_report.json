@@ -1,0 +1,136 @@
+{
+  "experiment": {
+    "experiment_name": "cifar100_softplus_fully_ttfs_smoke_seed42",
+    "date_time": "2026-08-19T10:14:06+03:30",
+    "output_directory": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_nonnegative_softplus\\_smoke",
+    "notes": null,
+    "seed": 42,
+    "status": "completed",
+    "updated_at": "2026-08-19T10:14:16+03:30"
+  },
+  "dataset": {
+    "dataset_name": "CIFAR-100",
+    "number_of_classes": 100,
+    "input_resolution": [
+      32,
+      32
+    ],
+    "train_sample_count": 45000,
+    "validation_sample_count": 5000,
+    "test_sample_count": 10000,
+    "preprocessing": "augmentation, ToTensor/RandomErasing, optional Mixup/CutMix, then continuous TTFS encoding",
+    "augmentation": "training: RandomCrop(32,padding=4), RandomHorizontalFlip, RandAugment(enabled=False,ops=2,magnitude=9), RandomErasing(p=0.0), Mixup(alpha=0.0), CutMix(alpha=0.0); validation/test: ToTensor only"
+  },
+  "architecture": {
+    "dims": [
+      8,
+      16,
+      32,
+      64
+    ],
+    "depths": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "parameter_count": 77668,
+    "stem_kernel": 3,
+    "stem_stride": 1,
+    "stem_padding": 1,
+    "depthwise_kernel_size": 3,
+    "depthwise_mode": "ttfs",
+    "downsample_kernel": 3,
+    "downsample_stride": 2,
+    "downsample_padding": 1,
+    "downsample_mode": "ttfs",
+    "residual_operator": "min",
+    "pw1_mode": "ttfs",
+    "pw2_mode": "ttfs",
+    "pointwise_weight_parameterization": "softplus",
+    "ttfs_norm_mode": "score_layernorm",
+    "final_score_norm": true,
+    "spike_dropout": 0.0,
+    "delay_enabled": true,
+    "stage_delays": [
+      0.05,
+      0.02,
+      0.01,
+      0.01
+    ],
+    "delay_parameterization": "max_delay * sigmoid(raw_delay)",
+    "t_min": 0.0,
+    "t_max": 1.0
+  },
+  "training": {
+    "epochs": 1,
+    "batch_size": 512,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0001,
+    "convolution_delay_learning_rate": null,
+    "delay_regularization_weight": 0.0,
+    "delay_regularization_definition": "mean effective bounded D_mid/D_out delay",
+    "lr_scheduler": "ReduceLROnPlateau(mode=max)",
+    "lr_scheduler_patience": 3,
+    "lr_scheduler_factor": 0.85,
+    "minimum_learning_rate": 1e-06,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "head_dropout": 0.1,
+    "mixup_alpha": 0.0,
+    "cutmix_alpha": 0.0,
+    "randaugment": false,
+    "randaugment_num_ops": 2,
+    "randaugment_magnitude": 9,
+    "random_erasing": 0.0,
+    "early_stopping_patience": 30,
+    "ema_enabled": false,
+    "ema_decay": null,
+    "pretrained_checkpoint": null,
+    "ann_pretrained_checkpoint": null,
+    "pretrained_initialization": null,
+    "constrained_finetune_initialization": null
+  },
+  "results": {
+    "best_epoch": 0,
+    "best_validation_accuracy": 0.88,
+    "final_train_accuracy": 0.9666666666666667,
+    "final_validation_accuracy": 0.88,
+    "test_accuracy": 1.0,
+    "test_loss": 4.606360250091552,
+    "training_time_seconds": 9.98806881904602,
+    "checkpoint_path": "C:\\Users\\jafari.h\\Desktop\\ai_project\\ConvNeXt\\fine_tune_results_v3\\cifar100\\ablation_nonnegative_softplus\\_smoke\\best_checkpoint.pth",
+    "delay_regularization_weight": 0.0,
+    "final_effective_delays": {
+      "definition": "mean effective bounded D_mid/D_out delay",
+      "overall_mean": 0.014023841358721256,
+      "per_stage": [
+        {
+          "stage": 0,
+          "mid": 0.05005848407745361,
+          "out": 0.05005848407745361
+        },
+        {
+          "stage": 1,
+          "mid": 0.020032435655593872,
+          "out": 0.020032435655593872
+        },
+        {
+          "stage": 2,
+          "mid": 0.010019520297646523,
+          "out": 0.010019520297646523
+        },
+        {
+          "stage": 3,
+          "mid": 0.010019520297646523,
+          "out": 0.010019520297646523
+        }
+      ]
+    }
+  },
+  "optional_evaluation": {
+    "activation_sparsity": null,
+    "dense_macs_per_sample": null,
+    "theoretical_synops_per_sample": null
+  }
+}

@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\Evaluation\summarize_pointwise_parameterization_ablation.py", line 156, in <module>
+    main()
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\Evaluation\summarize_pointwise_parameterization_ablation.py", line 94, in main
+    runs = [load_run(root, condition, seed) for condition in CONDITIONS for seed in SEEDS]
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\Evaluation\summarize_pointwise_parameterization_ablation.py", line 94, in <listcomp>
+    runs = [load_run(root, condition, seed) for condition in CONDITIONS for seed in SEEDS]
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\Evaluation\summarize_pointwise_parameterization_ablation.py", line 70, in load_run
+    "theoretical_synops": required_float(
+  File "C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\Evaluation\summarize_pointwise_parameterization_ablation.py", line 32, in required_float
+    raise ValueError(f"Missing {label} in {path}")
+ValueError: Missing theoretical SynOps in C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\fine_tune_results_v3\cifar100\ablation_nonnegative_pointwise\seed_42\activation_sparsity.md
+Pointwise parameterization summary generation failed
+At C:\Users\jafari.h\Desktop\ai_project\ConvNeXt\run_ablation_nonnegative_softplus.ps1:110 char:5
++     throw "Pointwise parameterization summary generation failed"
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Pointwise param...neration failed:String) [], RuntimeException
+    + FullyQualifiedErrorId : Pointwise parameterization summary generation failed
+ 

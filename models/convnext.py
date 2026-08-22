@@ -1197,6 +1197,7 @@ class SpikingBlock(nn.Module):
     def __init__(self, orig_block: Block, t_min=0.0, t_max=1.0,
                  force_positive_weights: bool = False, init_delay: float = 0.0,
                  force_positive_pointwise_weights: bool = False,
+                 pointwise_weight_parameterization: str = "signed",
                  spike_dropout: float = 0.0, pw2_mode: str = "ttfs",
                  ttfs_norm_mode: str = "none", dwconv_mode: str = "dense",
                  residual_operator: str = "min"):
@@ -1229,9 +1230,25 @@ class SpikingBlock(nn.Module):
         else:
             self.register_parameter("raw_residual_gate", None)
         self.force_positive_weights = bool(force_positive_weights)
-        self.force_positive_pointwise_weights = bool(
-            force_positive_weights or force_positive_pointwise_weights
-        )
+        parameterization = str(pointwise_weight_parameterization).strip().lower()
+        if force_positive_weights or force_positive_pointwise_weights:
+            if parameterization not in {"signed", "relu"}:
+                raise ValueError(
+                    "Legacy positive pointwise flags conflict with "
+                    f"parameterization={parameterization!r}"
+                )
+            parameterization = "relu"
+        if parameterization not in {"signed", "relu", "softplus"}:
+            raise ValueError(
+                "pointwise_weight_parameterization must be signed, relu, or softplus"
+            )
+        self.pointwise_weight_parameterization = parameterization
+        self.force_positive_pointwise_weights = parameterization == "relu"
+        if parameterization == "softplus":
+            with torch.no_grad():
+                for pointwise in (self.pw1, self.pw2):
+                    effective_initial = pointwise.weight.detach().abs().clamp_min(1e-6)
+                    pointwise.weight.copy_(torch.log(torch.expm1(effective_initial)))
         self.gamma = getattr(orig_block, 'gamma', None)
         self.drop_path = orig_block.drop_path if hasattr(orig_block, 'drop_path') else nn.Identity()
         self.t_min = float(t_min)
@@ -1291,8 +1308,10 @@ class SpikingBlock(nn.Module):
         return {"mid": mid, "out": out}
 
     def effective_pointwise_weight(self, weight):
-        if self.force_positive_pointwise_weights:
+        if self.pointwise_weight_parameterization == "relu":
             return torch.relu(weight)
+        if self.pointwise_weight_parameterization == "softplus":
+            return F.softplus(weight, beta=1.0)
         return weight
 
 
@@ -1396,14 +1415,26 @@ class ConvNeXtSpiking(ConvNeXt):
                  stage_delays=None, ttfs_norm_mode="none",
                  final_score_norm=False, downsample_mode="dense",
                  dwconv_mode="dense", residual_operator="min",
-                 force_positive_pointwise_weights=False, **kwargs):
+                 force_positive_pointwise_weights=False,
+                 pointwise_weight_parameterization="signed", **kwargs):
         super().__init__(*args, **kwargs)
         self.force_positive_weights = bool(
             kwargs.get('force_positive_weights', False)
         )
-        self.force_positive_pointwise_weights = bool(
-            self.force_positive_weights or force_positive_pointwise_weights
-        )
+        parameterization = str(pointwise_weight_parameterization).strip().lower()
+        if self.force_positive_weights or force_positive_pointwise_weights:
+            if parameterization not in {"signed", "relu"}:
+                raise ValueError(
+                    "Legacy positive pointwise flags conflict with "
+                    f"parameterization={parameterization!r}"
+                )
+            parameterization = "relu"
+        if parameterization not in {"signed", "relu", "softplus"}:
+            raise ValueError(
+                "pointwise_weight_parameterization must be signed, relu, or softplus"
+            )
+        self.pointwise_weight_parameterization = parameterization
+        self.force_positive_pointwise_weights = parameterization == "relu"
         self.init_delay = float(init_delay)
         if stage_delays is None:
             stage_delays = (self.init_delay,) * 4
@@ -1447,6 +1478,9 @@ class ConvNeXtSpiking(ConvNeXt):
                     force_positive_weights=self.force_positive_weights,
                     force_positive_pointwise_weights=(
                         self.force_positive_pointwise_weights
+                    ),
+                    pointwise_weight_parameterization=(
+                        self.pointwise_weight_parameterization
                     ),
                     init_delay=self.stage_delays[si],
                     spike_dropout=spike_dropout,
