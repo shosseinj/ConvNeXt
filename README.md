@@ -39,3 +39,23 @@ The repository retains training utilities and backbone code derived from Meta's 
 ## Status
 
 This is an active experimental codebase rather than a general-purpose ConvNeXt implementation. Results should be read together with the corresponding experiment configuration and random seed.
+
+
+## Goal
+
+The repository provides a controlled workspace for testing analytic and continuous TTFS transformations of ConvNeXt components while tracking accuracy, latency, spike activity, and approximate operation counts.
+
+## Installation
+
+No pinned environment is supplied. Install a PyTorch build appropriate for the machine, followed by torchvision, timm, and the scientific dependencies imported by the selected script:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install torch torchvision timm numpy
+python train_continuous_ttfs_cifar10_32x32_stem1.py --help
+```
+
+## Working with the Repository
+
+Choose one training entry point and keep its dataset, dimensions, depths, temporal range, delay configuration, normalization mode, seed, and output directory fixed when comparing an ablation. Evaluation scripts consume the resulting checkpoints and write separate summaries. Do not compare metrics across result directories unless their configuration files establish the same protocol.
