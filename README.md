@@ -1,4 +1,4 @@
-# TTFS ConvNeXt Experiments [This was my idea (Abolfazl)]
+# TTFS ConvNeXt Experiments [(kidding)] I was checking for something
 
 This repository contains research experiments on adapting ConvNeXt-style architectures to time-to-first-spike (TTFS) computation. The code is used to study how convolutional operations, residual connections, normalization, temporal delays, and output scoring behave when activations are represented by spike timing rather than conventional dense feature values.
 
